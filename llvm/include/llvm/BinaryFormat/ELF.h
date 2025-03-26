@@ -323,6 +323,7 @@ enum {
   EM_VE = 251,            // NEC SX-Aurora VE
   EM_CSKY = 252,          // C-SKY 32-bit processor
   EM_LOONGARCH = 258,     // LoongArch
+  EM_RISCS = 261,         // RISCS
 };
 
 // Object file classes.
@@ -694,6 +695,11 @@ enum : unsigned {
   EF_RISCV_FLOAT_ABI_QUAD = 0x0006,
   EF_RISCV_RVE = 0x0008,
   EF_RISCV_TSO = 0x0010,
+};
+
+// ELF Relocation types for RISCS
+enum {
+#include "ELFRelocs/RISCS.def"
 };
 
 // ELF Relocation types for RISC-V
@@ -1187,6 +1193,8 @@ enum : unsigned {
   SHT_MIPS_ABIFLAGS = 0x7000002a, // ABI information.
 
   SHT_MSP430_ATTRIBUTES = 0x70000003U,
+
+  SHT_RISCS_ATTRIBUTES = 0x70000003U,
 
   SHT_RISCV_ATTRIBUTES = 0x70000003U,
 

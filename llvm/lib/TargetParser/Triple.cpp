@@ -1674,7 +1674,6 @@ unsigned Triple::getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::r600:
   case llvm::Triple::renderscript32:
   case llvm::Triple::riscv32:
-  case llvm::Triple::riscs:
   case llvm::Triple::shave:
   case llvm::Triple::sparc:
   case llvm::Triple::sparcel:
@@ -1704,6 +1703,7 @@ unsigned Triple::getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::ppc64:
   case llvm::Triple::ppc64le:
   case llvm::Triple::renderscript64:
+  case llvm::Triple::riscs:
   case llvm::Triple::riscv64:
   case llvm::Triple::sparcv9:
   case llvm::Triple::spirv:
@@ -1761,6 +1761,7 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::msp430:
   case Triple::systemz:
   case Triple::ve:
+  case Triple::riscs:
     T.setArch(UnknownArch);
     break;
 
@@ -1785,7 +1786,6 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::r600:
   case Triple::renderscript32:
   case Triple::riscv32:
-  case Triple::riscs:
   case Triple::shave:
   case Triple::sparc:
   case Triple::sparcel:
@@ -1867,6 +1867,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::ppc64:
   case Triple::ppc64le:
   case Triple::renderscript64:
+  case Triple::riscs:
   case Triple::riscv64:
   case Triple::sparcv9:
   case Triple::spir64:

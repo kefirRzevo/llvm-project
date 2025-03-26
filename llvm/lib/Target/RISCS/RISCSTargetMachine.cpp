@@ -1,68 +1,74 @@
-
-//===-- RISCSTargetMachine.cpp - Define TargetMachine for RISCS -----------===//
-//
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
 //===----------------------------------------------------------------------===//
 //
-// Implements the info about RISCS target spec.
+// Implements the info about RISC-S target spec.
 //
 //===----------------------------------------------------------------------===//
 
 #include "RISCSTargetMachine.h"
+#include "RISCSMachineFunctionInfo.h"
 #include "TargetInfo/RISCSTargetInfo.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/Passes/PassBuilder.h"
 #include "llvm/MC/TargetRegistry.h"
-#include "llvm/Transforms/Scalar.h"
-#include <optional>
+#include "llvm/Support/CodeGen.h"
+
+#define DEBUG_TYPE "sim"
+
 using namespace llvm;
 
-extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCSTarget() {
-  // Register the target.
-  RegisterTargetMachine<RISCSTargetMachine> A(getTheRISCSTarget());
-}
-
-static std::string computeDataLayout(const Triple &TT, StringRef CPU,
-                                     const TargetOptions &Options,
-                                     bool IsLittle) {
-  std::string Ret = "e-m:e-p:32:32-i8:8:32-i16:16:32-i64:64-n32";
-  return Ret;
-}
-
-static Reloc::Model getEffectiveRelocModel(bool JIT,
+static Reloc::Model getEffectiveRelocModel(const Triple &TT,
                                            std::optional<Reloc::Model> RM) {
-  if (!RM || JIT)
-     return Reloc::Static;
-  return *RM;
+  return RM.value_or(Reloc::Static);
 }
 
-RISCSTargetMachine::RISCSTargetMachine(const Target &T, const Triple &TT,
-                                         StringRef CPU, StringRef FS,
-                                         const TargetOptions &Options,
-                                         std::optional<Reloc::Model> RM,
-                                         std::optional<CodeModel::Model> CM,
-                                         CodeGenOptLevel OL, bool JIT,
-                                         bool IsLittle)
-    : CodeGenTargetMachineImpl(T, computeDataLayout(TT, CPU, Options, IsLittle), TT,
-                        CPU, FS, Options, getEffectiveRelocModel(JIT, RM),
-                        getEffectiveCodeModel(CM, CodeModel::Small), OL),
-      TLOF(std::make_unique<TargetLoweringObjectFileELF>()) {
-  initAsmInfo();
-}
-
+/// simTargetMachine ctor - Create an LP64 Architecture model
 RISCSTargetMachine::RISCSTargetMachine(const Target &T, const Triple &TT,
                                          StringRef CPU, StringRef FS,
                                          const TargetOptions &Options,
                                          std::optional<Reloc::Model> RM,
                                          std::optional<CodeModel::Model> CM,
                                          CodeGenOptLevel OL, bool JIT)
-    : RISCSTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, JIT, true) {}
+    : CodeGenTargetMachineImpl(T, "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128",
+                        TT, CPU, FS, Options, getEffectiveRelocModel(TT, RM),
+                        getEffectiveCodeModel(CM, CodeModel::Small), OL),
+      TLOF(std::make_unique<TargetLoweringObjectFileELF>()),
+      Subtarget(TT, std::string(CPU), std::string(FS), *this) {
+  initAsmInfo();
+}
+
+RISCSTargetMachine::~RISCSTargetMachine() = default;
+
+MachineFunctionInfo *RISCSTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return RISCSFunctionInfo::create<RISCSFunctionInfo>(Allocator, F, STI);
+}
+
+namespace {
+
+class RISCSPassConfig : public TargetPassConfig {
+public:
+  RISCSPassConfig(RISCSTargetMachine &TM, PassManagerBase &PM)
+      : TargetPassConfig(TM, PM) {}
+
+  RISCSTargetMachine &getRISCSTargetMachine() const {
+    return getTM<RISCSTargetMachine>();
+  }
+
+  bool addInstSelector() override;
+};
+
+} // anonymous namespace
 
 TargetPassConfig *RISCSTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new TargetPassConfig(*this, PM);
+  return new RISCSPassConfig(*this, PM);
+}
+
+bool RISCSPassConfig::addInstSelector() {
+  addPass(createRISCSISelDag(getRISCSTargetMachine(), getOptLevel()));
+  return false;
+}
+
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCSTarget() {
+  RegisterTargetMachine<RISCSTargetMachine> X(getTheRISCSTarget());
 }
