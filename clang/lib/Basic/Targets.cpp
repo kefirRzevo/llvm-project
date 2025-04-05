@@ -31,6 +31,7 @@
 #include "Targets/OSTargets.h"
 #include "Targets/PNaCl.h"
 #include "Targets/PPC.h"
+#include "Targets/RISCS.h"
 #include "Targets/RISCV.h"
 #include "Targets/SPIR.h"
 #include "Targets/Sparc.h"
@@ -428,6 +429,9 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::amdgcn:
   case llvm::Triple::r600:
     return std::make_unique<AMDGPUTargetInfo>(Triple, Opts);
+
+  case llvm::Triple::riscs:
+    return std::make_unique<RISCSTargetInfo>(Triple, Opts);
 
   case llvm::Triple::riscv32:
     switch (os) {
