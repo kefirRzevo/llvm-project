@@ -36,8 +36,8 @@ static MCOperand lowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym,
 }
 
 bool lowerRISCSMachineOperandToMCOperand(const MachineOperand &MO,
-                                          MCOperand &MCOp,
-                                          const AsmPrinter &AP) {
+                                         MCOperand &MCOp,
+                                         const AsmPrinter &AP) {
   switch (MO.getType()) {
   default:
     report_fatal_error("LowerRISCSMachineInstrToMCInst: unknown operand type");
@@ -78,7 +78,7 @@ bool lowerRISCSMachineOperandToMCOperand(const MachineOperand &MO,
 }
 
 bool lowerRISCSMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
-                                         AsmPrinter &AP) {
+                                    AsmPrinter &AP) {
   OutMI.setOpcode(MI->getOpcode());
 
   for (const MachineOperand &MO : MI->operands()) {
@@ -96,7 +96,7 @@ class RISCSAsmPrinter : public AsmPrinter {
 
 public:
   explicit RISCSAsmPrinter(TargetMachine &TM,
-                            std::unique_ptr<MCStreamer> Streamer)
+                           std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), STI(TM.getMCSubtargetInfo()) {}
 
   StringRef getPassName() const override { return "RISCS Assembly Printer"; }

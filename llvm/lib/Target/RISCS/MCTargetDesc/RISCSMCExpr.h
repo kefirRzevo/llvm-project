@@ -38,7 +38,7 @@ private:
 
 public:
   static const RISCSMCExpr *create(const MCExpr *Expr, VariantKind Kind,
-                                    MCContext &Ctx);
+                                   MCContext &Ctx);
 
   VariantKind getKind() const { return Kind; }
 

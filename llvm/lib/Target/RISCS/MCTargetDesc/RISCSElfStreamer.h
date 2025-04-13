@@ -104,9 +104,9 @@ public:
 };
 
 MCELFStreamer *createRISCSELFStreamer(MCContext &C,
-                                       std::unique_ptr<MCAsmBackend> MAB,
-                                       std::unique_ptr<MCObjectWriter> MOW,
-                                       std::unique_ptr<MCCodeEmitter> MCE);
-}
+                                      std::unique_ptr<MCAsmBackend> MAB,
+                                      std::unique_ptr<MCObjectWriter> MOW,
+                                      std::unique_ptr<MCCodeEmitter> MCE);
+} // namespace llvm
 
 #endif // LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSELFSTREAMER_H

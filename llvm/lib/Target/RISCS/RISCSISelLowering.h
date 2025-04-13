@@ -23,11 +23,12 @@ enum NodeType : unsigned {
 };
 
 } // namespace riscsISD
+class RISCSSubtarget;
 
 class RISCSTargetLowering : public TargetLowering {
 public:
   explicit RISCSTargetLowering(const TargetMachine &TM,
-                                const RISCSSubtarget &STI);
+                               const RISCSSubtarget &STI);
 
   /// Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -50,12 +51,12 @@ private:
   /// CCValAssign with additional information used to lower RISC-S calling
   /// conventions.
   typedef bool RISCSCCAssignFn(const DataLayout &DL, riscsABI::ABI,
-                                unsigned ValNo, MVT ValVT, MVT LocVT,
-                                CCValAssign::LocInfo LocInfo,
-                                ISD::ArgFlagsTy ArgFlags, CCState &State,
-                                bool IsFixed, bool IsRet, Type *OrigTy,
-                                const RISCSTargetLowering &TLI,
-                                std::optional<unsigned> FirstMaskArgument);
+                               unsigned ValNo, MVT ValVT, MVT LocVT,
+                               CCValAssign::LocInfo LocInfo,
+                               ISD::ArgFlagsTy ArgFlags, CCState &State,
+                               bool IsFixed, bool IsRet, Type *OrigTy,
+                               const RISCSTargetLowering &TLI,
+                               std::optional<unsigned> FirstMaskArgument);
 
   void analyzeInputArgs(MachineFunction &MF, CCState &CCInfo,
                         const SmallVectorImpl<ISD::InputArg> &Ins, bool IsRet,

@@ -30,14 +30,14 @@ class Target;
 extern Target TheRISCSTarget;
 
 MCCodeEmitter *createRISCSMCCodeEmitter(const MCInstrInfo &MCII,
-                                         MCContext &Ctx);
+                                        MCContext &Ctx);
 
 std::unique_ptr<MCObjectTargetWriter> createRISCSELFObjectWriter(uint8_t OSABI,
-                                                                  bool Is64Bit);
+                                                                 bool Is64Bit);
 
 MCAsmBackend *createRISCSAsmBackend(const Target &T, const MCSubtargetInfo &STI,
-                                     const MCRegisterInfo &MRI,
-                                     const MCTargetOptions &Options);
+                                    const MCRegisterInfo &MRI,
+                                    const MCTargetOptions &Options);
 } // namespace llvm
 
 #endif // LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSMCTARGETDESC_H

@@ -7,19 +7,17 @@
 //===----------------------------------------------------------------------===//
 
 // Generic riscs Format
-class InstFormat<bits<5> val> {
-  bits<5> Value = val;
-}
+class InstFormat<bits<5> val> { bits<5> Value = val; }
 
 // From RISC-V-like unprivileged ISA
-def InstFormatPseudo      : InstFormat<0>;
-def InstFormatR           : InstFormat<1>;
-def InstFormatI           : InstFormat<2>;
-def InstFormatS           : InstFormat<3>;
-def InstFormatB           : InstFormat<4>;
-def InstFormatU           : InstFormat<5>;
-def InstFormatJ           : InstFormat<6>;
-def InstFormatIntr        : InstFormat<7>;
+def InstFormatPseudo : InstFormat<0>;
+def InstFormatR : InstFormat<1>;
+def InstFormatI : InstFormat<2>;
+def InstFormatS : InstFormat<3>;
+def InstFormatB : InstFormat<4>;
+def InstFormatU : InstFormat<5>;
+def InstFormatJ : InstFormat<6>;
+def InstFormatIntr : InstFormat<7>;
 
 class riscsOpcode<string name, bits<7> val> {
   string Name = name;
@@ -27,33 +25,32 @@ class riscsOpcode<string name, bits<7> val> {
 }
 
 // TODO: delete commented instruction type if they are innecessary
-def OPC_LOAD      : riscsOpcode<"LOAD",      0b0000011>;
+def OPC_LOAD : riscsOpcode<"LOAD", 0b0000011>;
 // def OPC_LOAD_FP   : riscsOpcode<"LOAD_FP",   0b0000111>;
-def OPC_MISC_MEM  : riscsOpcode<"MISC_MEM",  0b0001111>;
-def OPC_OP_IMM    : riscsOpcode<"OP_IMM",    0b0010011>;
-def OPC_AUIPC     : riscsOpcode<"AUIPC",     0b0010111>;
+def OPC_MISC_MEM : riscsOpcode<"MISC_MEM", 0b0001111>;
+def OPC_OP_IMM : riscsOpcode<"OP_IMM", 0b0010011>;
+def OPC_AUIPC : riscsOpcode<"AUIPC", 0b0010111>;
 def OPC_OP_IMM_32 : riscsOpcode<"OP_IMM_32", 0b0011011>;
-def OPC_STORE     : riscsOpcode<"STORE",     0b0100011>;
+def OPC_STORE : riscsOpcode<"STORE", 0b0100011>;
 // def OPC_STORE_FP  : riscsOpcode<"STORE_FP",  0b0100111>;
 // def OPC_AMO       : riscsOpcode<"AMO",       0b0101111>;
-def OPC_OP        : riscsOpcode<"OP",        0b0110011>;
-def OPC_LUI       : riscsOpcode<"LUI",       0b0110111>;
-def OPC_OP_32     : riscsOpcode<"OP_32",     0b0111011>;
+def OPC_OP : riscsOpcode<"OP", 0b0110011>;
+def OPC_LUI : riscsOpcode<"LUI", 0b0110111>;
+def OPC_OP_32 : riscsOpcode<"OP_32", 0b0111011>;
 // def OPC_MADD      : riscsOpcode<"MADD",      0b1000011>;
 // def OPC_MSUB      : riscsOpcode<"MSUB",      0b1000111>;
 // def OPC_NMSUB     : riscsOpcode<"NMSUB",     0b1001011>;
 // def OPC_NMADD     : riscsOpcode<"NMADD",     0b1001111>;
 // def OPC_OP_FP     : riscsOpcode<"OP_FP",     0b1010011>;
 // def OPC_OP_V      : riscsOpcode<"OP_V",      0b1010111>;
-def OPC_BRANCH    : riscsOpcode<"BRANCH",    0b1100011>;
-def OPC_JALR      : riscsOpcode<"JALR",      0b1100111>;
-def OPC_JAL       : riscsOpcode<"JAL",       0b1101111>;
-def OPC_SYSTEM    : riscsOpcode<"SYSTEM",    0b1110011>;
+def OPC_BRANCH : riscsOpcode<"BRANCH", 0b1100011>;
+def OPC_JALR : riscsOpcode<"JALR", 0b1100111>;
+def OPC_JAL : riscsOpcode<"JAL", 0b1101111>;
+def OPC_SYSTEM : riscsOpcode<"SYSTEM", 0b1110011>;
 def OPC_INTRINSIC : riscsOpcode<"INTRINSIC", 0b1111111>;
 
 class riscsInst<dag outs, dag ins, string opcodestr, string argstr,
-             list<dag> pattern, InstFormat format>
-    : Instruction {
+                list<dag> pattern, InstFormat format> : Instruction {
   let Namespace = "riscs";
   let DecoderNamespace = "riscs";
   let Size = 4;
@@ -62,18 +59,19 @@ class riscsInst<dag outs, dag ins, string opcodestr, string argstr,
 
   bits<7> Opcode = 0;
 
-  let Inst{6-0} = Opcode;
+  let Inst{6 - 0} = Opcode;
 
   dag OutOperandList = outs;
   dag InOperandList = ins;
-  let AsmString = opcodestr # "\t" # argstr;
+  let AsmString = opcodestr #"\t" #argstr;
   let Pattern = pattern;
 
-  let TSFlags{4-0} = format.Value;
+  let TSFlags{4 - 0} = format.Value;
 }
 
 // Pseudo instructions
-class Pseudo<dag outs, dag ins, list<dag> pattern, string opcodestr = "", string argstr = "">
+class Pseudo<dag outs, dag ins, list<dag> pattern, string opcodestr = "",
+             string argstr = "">
     : riscsInst<outs, ins, opcodestr, argstr, pattern, InstFormatPseudo> {
   let isPseudo = 1;
   let isCodeGenOnly = 1;
@@ -81,7 +79,11 @@ class Pseudo<dag outs, dag ins, list<dag> pattern, string opcodestr = "", string
 
 // Pseudo load instructions.
 class PseudoLoad<string opcodestr, RegisterClass rdty = GPR>
-    : Pseudo<(outs rdty:$rd), (ins bare_symbol:$addr), [], opcodestr, "$rd, $addr"> {
+    : Pseudo<(outs rdty
+              : $rd),
+             (ins bare_symbol
+              : $addr),
+             [], opcodestr, "$rd, $addr"> {
   let hasSideEffects = 0;
   let mayLoad = 1;
   let mayStore = 0;
@@ -91,7 +93,12 @@ class PseudoLoad<string opcodestr, RegisterClass rdty = GPR>
 
 // Pseudo store instructions.
 class PseudoStore<string opcodestr, RegisterClass rsty = GPR>
-    : Pseudo<(outs GPR:$tmp), (ins rsty:$rs, bare_symbol:$addr), [], opcodestr, "$rs, $addr, $tmp"> {
+    : Pseudo<(outs GPR
+              : $tmp),
+             (ins rsty
+              : $rs, bare_symbol
+              : $addr),
+             [], opcodestr, "$rs, $addr, $tmp"> {
   let hasSideEffects = 0;
   let mayLoad = 0;
   let mayStore = 1;
@@ -100,158 +107,161 @@ class PseudoStore<string opcodestr, RegisterClass rsty = GPR>
 }
 
 class riscsInstR<bits<7> funct7, bits<3> funct3, riscsOpcode opcode, dag outs,
-              dag ins, string opcodestr, string argstr>
+                 dag ins, string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatR> {
   bits<5> rs2;
   bits<5> rs1;
   bits<5> rd;
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{31 - 25} = funct7;
+  let Inst{24 - 20} = rs2;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
-class riscsInst0ins0out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode, dag outs,
-              dag ins, string opcodestr, string argstr, list<dag> pattern>
+class riscsInst0ins0out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode,
+                        dag outs, dag ins, string opcodestr, string argstr,
+                        list<dag> pattern>
     : riscsInst<outs, ins, opcodestr, argstr, pattern, InstFormatIntr> {
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = 0;
-  let Inst{19-15} = 0;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = 0;
+  let Inst{31 - 25} = funct7;
+  let Inst{24 - 20} = 0;
+  let Inst{19 - 15} = 0;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = 0;
   let Opcode = opcode.Value;
 }
 
-class riscsInst0ins1out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode, dag outs,
-              dag ins, string opcodestr, string argstr, list<dag> pattern>
+class riscsInst0ins1out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode,
+                        dag outs, dag ins, string opcodestr, string argstr,
+                        list<dag> pattern>
     : riscsInst<outs, ins, opcodestr, argstr, pattern, InstFormatIntr> {
   bits<5> rd;
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = 0;
-  let Inst{19-15} = 0;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{31 - 25} = funct7;
+  let Inst{24 - 20} = 0;
+  let Inst{19 - 15} = 0;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
-class riscsInst3ins0out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode, dag outs,
-              dag ins, string opcodestr, string argstr, list<dag> pattern>
+class riscsInst3ins0out<bits<7> funct7, bits<3> funct3, riscsOpcode opcode,
+                        dag outs, dag ins, string opcodestr, string argstr,
+                        list<dag> pattern>
     : riscsInst<outs, ins, opcodestr, argstr, pattern, InstFormatIntr> {
   bits<5> rs2;
   bits<5> rs1;
   bits<5> rd;
 
-  let Inst{31-25} = funct7;
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{31 - 25} = funct7;
+  let Inst{24 - 20} = rs2;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
 class riscsInstI<bits<3> funct3, riscsOpcode opcode, dag outs, dag ins,
-              string opcodestr, string argstr>
+                 string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
   bits<12> imm12;
   bits<5> rs1;
   bits<5> rd;
 
-  let Inst{31-20} = imm12;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{31 - 20} = imm12;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
 class riscsInstS<bits<3> funct3, riscsOpcode opcode, dag outs, dag ins,
-              string opcodestr, string argstr>
+                 string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatS> {
   bits<12> imm12;
   bits<5> rs2;
   bits<5> rs1;
 
-  let Inst{31-25} = imm12{11-5};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = imm12{4-0};
+  let Inst{31 - 25} = imm12{11 - 5};
+  let Inst{24 - 20} = rs2;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = imm12{4 - 0};
   let Opcode = opcode.Value;
 }
 
 class riscsInstB<bits<3> funct3, riscsOpcode opcode, dag outs, dag ins,
-              string opcodestr, string argstr>
+                 string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatB> {
   bits<12> imm12;
   bits<5> rs2;
   bits<5> rs1;
 
   let Inst{31} = imm12{11};
-  let Inst{30-25} = imm12{9-4};
-  let Inst{24-20} = rs2;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-8} = imm12{3-0};
+  let Inst{30 - 25} = imm12{9 - 4};
+  let Inst{24 - 20} = rs2;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 8} = imm12{3 - 0};
   let Inst{7} = imm12{10};
   let Opcode = opcode.Value;
 }
 
 class riscsInstU<riscsOpcode opcode, dag outs, dag ins, string opcodestr,
-              string argstr>
+                 string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatU> {
   bits<20> imm20;
   bits<5> rd;
 
-  let Inst{31-12} = imm20;
-  let Inst{11-7} = rd;
+  let Inst{31 - 12} = imm20;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
 class riscsInstJ<riscsOpcode opcode, dag outs, dag ins, string opcodestr,
-              string argstr>
+                 string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatJ> {
   bits<20> imm20;
   bits<5> rd;
 
   let Inst{31} = imm20{19};
-  let Inst{30-21} = imm20{9-0};
+  let Inst{30 - 21} = imm20{9 - 0};
   let Inst{20} = imm20{10};
-  let Inst{19-12} = imm20{18-11};
-  let Inst{11-7} = rd;
+  let Inst{19 - 12} = imm20{18 - 11};
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
 class riscsInstIShift<bits<5> imm11_7, bits<3> funct3, riscsOpcode opcode,
-                   dag outs, dag ins, string opcodestr, string argstr>
+                      dag outs, dag ins, string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
   bits<6> shamt;
   bits<5> rs1;
   bits<5> rd;
 
-  let Inst{31-27} = imm11_7;
+  let Inst{31 - 27} = imm11_7;
   let Inst{26} = 0;
-  let Inst{25-20} = shamt;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{25 - 20} = shamt;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }
 
 class riscsInstIShiftW<bits<7> imm11_5, bits<3> funct3, riscsOpcode opcode,
-                    dag outs, dag ins, string opcodestr, string argstr>
+                       dag outs, dag ins, string opcodestr, string argstr>
     : riscsInst<outs, ins, opcodestr, argstr, [], InstFormatI> {
   bits<5> shamt;
   bits<5> rs1;
   bits<5> rd;
 
-  let Inst{31-25} = imm11_5;
-  let Inst{24-20} = shamt;
-  let Inst{19-15} = rs1;
-  let Inst{14-12} = funct3;
-  let Inst{11-7} = rd;
+  let Inst{31 - 25} = imm11_5;
+  let Inst{24 - 20} = shamt;
+  let Inst{19 - 15} = rs1;
+  let Inst{14 - 12} = funct3;
+  let Inst{11 - 7} = rd;
   let Opcode = opcode.Value;
 }

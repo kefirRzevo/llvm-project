@@ -17,5 +17,5 @@ Target &llvm::getTheRISCSTarget() {
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCSTargetInfo() {
   RegisterTarget<Triple::riscs, /*HasJIT=*/false> X(
-        getTheRISCSTarget(), "riscs", "64-bit RISC-S", "RISCS");
+      getTheRISCSTarget(), "riscs", "64-bit RISC-S", "RISCS");
 }

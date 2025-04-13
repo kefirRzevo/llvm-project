@@ -35,7 +35,7 @@ protected:
   unsigned getRelocType(MCContext &Ctx, const MCValue &Target,
                         const MCFixup &Fixup, bool IsPCRel) const override;
 };
-}
+} // namespace
 
 RISCSELFObjectWriter::RISCSELFObjectWriter(uint8_t OSABI, bool Is64Bit)
     : MCELFObjectTargetWriter(Is64Bit, OSABI, ELF::EM_RISCS,
@@ -44,9 +44,9 @@ RISCSELFObjectWriter::RISCSELFObjectWriter(uint8_t OSABI, bool Is64Bit)
 RISCSELFObjectWriter::~RISCSELFObjectWriter() {}
 
 unsigned RISCSELFObjectWriter::getRelocType(MCContext &Ctx,
-                                             const MCValue &Target,
-                                             const MCFixup &Fixup,
-                                             bool IsPCRel) const {
+                                            const MCValue &Target,
+                                            const MCFixup &Fixup,
+                                            bool IsPCRel) const {
   const MCExpr *Expr = Fixup.getValue();
   // Determine the type of the relocation
   unsigned Kind = Fixup.getTargetKind();

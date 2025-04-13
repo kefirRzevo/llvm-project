@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "RISCSInfo.h"
 #include "RISCSTargetStreamer.h"
+#include "RISCSInfo.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/RISCSAttributes.h"
 #include "llvm/Support/RISCSISAInfo.h"
@@ -31,10 +31,10 @@ void RISCSTargetStreamer::emitDirectiveOptionNoRelax() {}
 void RISCSTargetStreamer::emitAttribute(unsigned Attribute, unsigned Value) {}
 void RISCSTargetStreamer::finishAttributeSection() {}
 void RISCSTargetStreamer::emitTextAttribute(unsigned Attribute,
-                                             StringRef String) {}
+                                            StringRef String) {}
 void RISCSTargetStreamer::emitIntTextAttribute(unsigned Attribute,
-                                                unsigned IntValue,
-                                                StringRef StringValue) {}
+                                               unsigned IntValue,
+                                               StringRef StringValue) {}
 
 void RISCSTargetStreamer::emitTargetAttributes(const MCSubtargetInfo &STI) {
   emitAttribute(RISCSAttrs::STACK_ALIGN, RISCSAttrs::ALIGN_16);
@@ -56,7 +56,7 @@ void RISCSTargetStreamer::emitTargetAttributes(const MCSubtargetInfo &STI) {
 
 // This part is for ascii assembly output
 RISCSTargetAsmStreamer::RISCSTargetAsmStreamer(MCStreamer &S,
-                                                 formatted_raw_ostream &OS)
+                                               formatted_raw_ostream &OS)
     : RISCSTargetStreamer(S), OS(OS) {}
 
 void RISCSTargetAsmStreamer::emitDirectiveOptionPush() {
@@ -88,12 +88,12 @@ void RISCSTargetAsmStreamer::emitAttribute(unsigned Attribute, unsigned Value) {
 }
 
 void RISCSTargetAsmStreamer::emitTextAttribute(unsigned Attribute,
-                                                StringRef String) {
+                                               StringRef String) {
   OS << "\t.attribute\t" << Attribute << ", \"" << String << "\"\n";
 }
 
 void RISCSTargetAsmStreamer::emitIntTextAttribute(unsigned Attribute,
-                                                   unsigned IntValue,
-                                                   StringRef StringValue) {}
+                                                  unsigned IntValue,
+                                                  StringRef StringValue) {}
 
 void RISCSTargetAsmStreamer::finishAttributeSection() {}

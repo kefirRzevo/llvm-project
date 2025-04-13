@@ -7,15 +7,15 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "riscs-mcexpr"
 
 const RISCSMCExpr *RISCSMCExpr::create(const MCExpr *Expr, VariantKind Kind,
-                                         MCContext &Ctx) {
+                                       MCContext &Ctx) {
   return new (Ctx) RISCSMCExpr(Expr, Kind);
 }
 
@@ -77,8 +77,8 @@ const MCFixup *RISCSMCExpr::getPCRelHiFixup(const MCFragment **DFOut) const {
 }
 
 bool RISCSMCExpr::evaluateAsRelocatableImpl(MCValue &Res,
-                                             const MCAssembler *Asm,
-                                             const MCFixup *Fixup) const {
+                                            const MCAssembler *Asm,
+                                            const MCFixup *Fixup) const {
   // Explicitly drop the layout and assembler to prevent any symbolic folding in
   // the expression handling.  This is required to preserve symbolic difference
   // expressions to emit the paired relocations.
@@ -190,11 +190,11 @@ void RISCSMCExpr::fixELFSymbolsInTLSFixups(MCAssembler &Asm) const {
 bool RISCSMCExpr::evaluateAsConstant(int64_t &Res) const {
   MCValue Value;
 
-  if (Kind == VK_RISCS_PCREL_HI   || Kind == VK_RISCS_PCREL_LO ||
-      Kind == VK_RISCS_GOT_HI     || Kind == VK_RISCS_TPREL_HI ||
-      Kind == VK_RISCS_TPREL_LO   || Kind == VK_RISCS_TPREL_ADD ||
+  if (Kind == VK_RISCS_PCREL_HI || Kind == VK_RISCS_PCREL_LO ||
+      Kind == VK_RISCS_GOT_HI || Kind == VK_RISCS_TPREL_HI ||
+      Kind == VK_RISCS_TPREL_LO || Kind == VK_RISCS_TPREL_ADD ||
       Kind == VK_RISCS_TLS_GOT_HI || Kind == VK_RISCS_TLS_GD_HI ||
-      Kind == VK_RISCS_CALL       || Kind == VK_RISCS_CALL_PLT)
+      Kind == VK_RISCS_CALL || Kind == VK_RISCS_CALL_PLT)
     return false;
 
   if (!getSubExpr()->evaluateAsRelocatable(Value, nullptr, nullptr))

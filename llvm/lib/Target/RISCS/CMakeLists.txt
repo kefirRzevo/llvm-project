@@ -23,7 +23,6 @@ add_llvm_target(RISCSCodeGen
   RISCSISelLowering.cpp
   RISCSFrameLowering.cpp
 
-  RISCSMatInt.cpp
   RISCSISelDagToDag.cpp
   RISCSAsmPrinter.cpp
 

@@ -18,8 +18,8 @@
 using namespace llvm;
 
 void RISCSFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                               BitVector &SavedRegs,
-                                               RegScavenger *RS) const {
+                                              BitVector &SavedRegs,
+                                              RegScavenger *RS) const {
   TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
   // Unconditionally spill RA and FP only if the function uses a frame
   // pointer.
@@ -35,10 +35,10 @@ void RISCSFrameLowering::determineCalleeSaves(MachineFunction &MF,
 }
 
 void RISCSFrameLowering::adjustReg(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator MBBI,
-                                    const DebugLoc &DL, Register DestReg,
-                                    Register SrcReg, int64_t Val,
-                                    MachineInstr::MIFlag Flag) const {
+                                   MachineBasicBlock::iterator MBBI,
+                                   const DebugLoc &DL, Register DestReg,
+                                   Register SrcReg, int64_t Val,
+                                   MachineInstr::MIFlag Flag) const {
   const RISCSInstrInfo *TII = STI.getInstrInfo();
 
   if (DestReg == SrcReg && Val == 0)
@@ -85,7 +85,7 @@ void RISCSFrameLowering::determineFrameLayout(MachineFunction &MF) const {
 }
 
 void RISCSFrameLowering::emitPrologue(MachineFunction &MF,
-                                       MachineBasicBlock &MBB) const {
+                                      MachineBasicBlock &MBB) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *FI = MF.getInfo<RISCSFunctionInfo>();
   const RISCSRegisterInfo *RI = STI.getRegisterInfo();
@@ -142,10 +142,10 @@ void RISCSFrameLowering::emitPrologue(MachineFunction &MF,
     Align MaxAlignment = MFI.getMaxAlign();
 
     if (isInt<12>(-(int)MaxAlignment.value())) {
-        BuildMI(MBB, MBBI, DL, TII->get(riscs::ANDI), SPReg)
-            .addReg(SPReg)
-            .addImm(-(int)MaxAlignment.value())
-            .setMIFlag(MachineInstr::FrameSetup);
+      BuildMI(MBB, MBBI, DL, TII->get(riscs::ANDI), SPReg)
+          .addReg(SPReg)
+          .addImm(-(int)MaxAlignment.value())
+          .setMIFlag(MachineInstr::FrameSetup);
     } else {
       llvm_unreachable(""); // always fixed alignment
       // here slli + srli emitting can be used, but it is not so brutal
@@ -165,7 +165,7 @@ void RISCSFrameLowering::emitPrologue(MachineFunction &MF,
 }
 
 void RISCSFrameLowering::emitEpilogue(MachineFunction &MF,
-                                       MachineBasicBlock &MBB) const {
+                                      MachineBasicBlock &MBB) const {
   const RISCSRegisterInfo *RI = STI.getRegisterInfo();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   auto *UFI = MF.getInfo<RISCSFunctionInfo>();
@@ -252,7 +252,8 @@ bool RISCSFrameLowering::restoreCalleeSavedRegisters(
   for (auto &CS : reverse(CSI)) {
     Register Reg = CS.getReg();
     const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI, Register());
+    TII.loadRegFromStackSlot(MBB, MI, Reg, CS.getFrameIdx(), RC, TRI,
+                             Register());
     assert(MI != MBB.begin() && "loadRegFromStackSlot didn't insert any code!");
   }
 
@@ -317,7 +318,8 @@ bool RISCSFrameLowering::hasFPImpl(const MachineFunction &MF) const {
   const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
 
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  return MF.getTarget().Options.DisableFramePointerElim(MF) || // -fomit-frame-pointer
+  return MF.getTarget().Options.DisableFramePointerElim(
+             MF) || // -fomit-frame-pointer
          RegInfo->hasStackRealignment(MF) ||
          MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken();
 }
@@ -329,9 +331,9 @@ bool RISCSFrameLowering::hasBP(const MachineFunction &MF) const {
   return MFI.hasVarSizedObjects() && TRI->hasStackRealignment(MF);
 }
 
-StackOffset RISCSFrameLowering::getFrameIndexReference(const MachineFunction &MF,
-                                                        int FI,
-                                                        Register &FrameReg) const {
+StackOffset
+RISCSFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
+                                           Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
   const auto *UFI = MF.getInfo<RISCSFunctionInfo>();

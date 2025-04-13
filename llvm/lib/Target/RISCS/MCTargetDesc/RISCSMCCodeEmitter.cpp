@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "RISCSInfo.h"
 #include "RISCSFixupKinds.h"
+#include "RISCSInfo.h"
 #include "RISCSMCExpr.h"
 #include "RISCSMCTargetDesc.h"
 #include "llvm/ADT/Statistic.h"
@@ -16,11 +16,11 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstBuilder.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCInstBuilder.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/raw_ostream.h"
@@ -88,13 +88,14 @@ public:
 } // end anonymous namespace
 
 MCCodeEmitter *llvm::createRISCSMCCodeEmitter(const MCInstrInfo &MCII,
-                                               MCContext &Ctx) {
+                                              MCContext &Ctx) {
   return new RISCSMCCodeEmitter(Ctx, MCII);
 }
 
-void RISCSMCCodeEmitter::expandFunctionCall(const MCInst &MI, SmallVectorImpl<char> &CB,
-                                             SmallVectorImpl<MCFixup> &Fixups,
-                                             const MCSubtargetInfo &STI) const {
+void RISCSMCCodeEmitter::expandFunctionCall(const MCInst &MI,
+                                            SmallVectorImpl<char> &CB,
+                                            SmallVectorImpl<MCFixup> &Fixups,
+                                            const MCSubtargetInfo &STI) const {
   MCInst TmpInst;
   MCOperand Func;
   MCRegister Ra;
@@ -152,11 +153,12 @@ void RISCSMCCodeEmitter::expandFunctionCall(const MCInst &MI, SmallVectorImpl<ch
 //   support::endian::write(OS, Binary, endianness::little);
 // }
 
-void RISCSMCCodeEmitter::encodeInstruction(const MCInst &MI, SmallVectorImpl<char> &CB,
-                                            SmallVectorImpl<MCFixup> &Fixups,
-                                            const MCSubtargetInfo &STI) const {
-  RISCS_MC::verifyInstructionPredicates(MI.getOpcode(),
-      RISCS_MC::computeAvailableFeatures(STI.getFeatureBits()));
+void RISCSMCCodeEmitter::encodeInstruction(const MCInst &MI,
+                                           SmallVectorImpl<char> &CB,
+                                           SmallVectorImpl<MCFixup> &Fixups,
+                                           const MCSubtargetInfo &STI) const {
+  RISCS_MC::verifyInstructionPredicates(
+      MI.getOpcode(), RISCS_MC::computeAvailableFeatures(STI.getFeatureBits()));
 
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
   // Get byte count of instruction.
@@ -195,8 +197,8 @@ void RISCSMCCodeEmitter::encodeInstruction(const MCInst &MI, SmallVectorImpl<cha
 
 unsigned
 RISCSMCCodeEmitter::getMachineOpValue(const MCInst &MI, const MCOperand &MO,
-                                       SmallVectorImpl<MCFixup> &Fixups,
-                                       const MCSubtargetInfo &STI) const {
+                                      SmallVectorImpl<MCFixup> &Fixups,
+                                      const MCSubtargetInfo &STI) const {
 
   if (MO.isReg())
     return Ctx.getRegisterInfo()->getEncodingValue(MO.getReg());
@@ -210,8 +212,8 @@ RISCSMCCodeEmitter::getMachineOpValue(const MCInst &MI, const MCOperand &MO,
 
 unsigned
 RISCSMCCodeEmitter::getImmOpValueAsr1(const MCInst &MI, unsigned OpNo,
-                                       SmallVectorImpl<MCFixup> &Fixups,
-                                       const MCSubtargetInfo &STI) const {
+                                      SmallVectorImpl<MCFixup> &Fixups,
+                                      const MCSubtargetInfo &STI) const {
   const MCOperand &MO = MI.getOperand(OpNo);
 
   if (MO.isImm()) {
@@ -235,8 +237,7 @@ unsigned RISCSMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
   if (MO.isImm())
     return MO.getImm();
 
-  assert(MO.isExpr() &&
-         "getImmOpValue expects only expressions or immediates");
+  assert(MO.isExpr() && "getImmOpValue expects only expressions or immediates");
   const MCExpr *Expr = MO.getExpr();
   MCExpr::ExprKind Kind = Expr->getKind();
   riscs::Fixups FixupKind = riscs::fixup_RISCS_invalid;
@@ -307,7 +308,8 @@ unsigned RISCSMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       break;
     }
   } else if (Kind == MCExpr::SymbolRef &&
-             cast<MCSymbolRefExpr>(Expr)->getKind() == MCSymbolRefExpr::VK_None) {
+             cast<MCSymbolRefExpr>(Expr)->getKind() ==
+                 MCSymbolRefExpr::VK_None) {
     if (MIFrm == riscsII::InstFormatJ) {
       FixupKind = riscs::fixup_RISCS_jal;
     } else if (MIFrm == riscsII::InstFormatB) {

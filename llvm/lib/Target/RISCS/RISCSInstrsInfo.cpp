@@ -1,6 +1,6 @@
 #include "RISCSInstrsInfo.h"
-#include "RISCSSubtarget.h"
 #include "MCTargetDesc/RISCSInfo.h"
+#include "RISCSSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
@@ -17,17 +17,17 @@ using namespace llvm;
 void RISCSInstrInfo::anchor() {}
 
 RISCSInstrInfo::RISCSInstrInfo(const RISCSSubtarget &STI)
-    : RISCSGenInstrInfo(riscs::ADJCALLSTACKDOWN, riscs::ADJCALLSTACKUP), STI(STI) {
-}
+    : RISCSGenInstrInfo(riscs::ADJCALLSTACKDOWN, riscs::ADJCALLSTACKUP),
+      STI(STI) {}
 
 Register RISCSInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
-                                              int &FrameIndex) const {
+                                             int &FrameIndex) const {
   llvm_unreachable("");
   return 0;
 }
 
 Register RISCSInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
-                                             int &FrameIndex) const {
+                                            int &FrameIndex) const {
   llvm_unreachable("");
   return 0;
 }
@@ -104,10 +104,10 @@ riscsCC::CondCode riscsCC::getOppositeBranchCondition(riscsCC::CondCode CC) {
 
 // TODO: inherited from riscv
 bool RISCSInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
-                                    MachineBasicBlock *&TBB,
-                                    MachineBasicBlock *&FBB,
-                                    SmallVectorImpl<MachineOperand> &Cond,
-                                    bool AllowModify) const {
+                                   MachineBasicBlock *&TBB,
+                                   MachineBasicBlock *&FBB,
+                                   SmallVectorImpl<MachineOperand> &Cond,
+                                   bool AllowModify) const {
   TBB = FBB = nullptr;
   Cond.clear();
 
@@ -172,7 +172,7 @@ bool RISCSInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
 }
 
 unsigned RISCSInstrInfo::removeBranch(MachineBasicBlock &MBB,
-                                       int *BytesRemoved) const {
+                                      int *BytesRemoved) const {
   if (BytesRemoved)
     *BytesRemoved = 0;
   MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
@@ -210,9 +210,10 @@ RISCSInstrInfo::getBranchDestBlock(const MachineInstr &MI) const {
 }
 
 void RISCSInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator MBBI,
-                                  const DebugLoc &DL, MCRegister DstReg,
-                                  MCRegister SrcReg, bool KillSrc, bool, bool) const {
+                                 MachineBasicBlock::iterator MBBI,
+                                 const DebugLoc &DL, MCRegister DstReg,
+                                 MCRegister SrcReg, bool KillSrc, bool,
+                                 bool) const {
   if (riscs::GPRRegClass.contains(DstReg, SrcReg)) {
     BuildMI(MBB, MBBI, DL, get(riscs::ADDI), DstReg)
         .addReg(SrcReg, getKillRegState(KillSrc))
@@ -222,12 +223,10 @@ void RISCSInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   llvm_unreachable("can't copyPhysReg");
 }
 
-void RISCSInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-                                          MachineBasicBlock::iterator I,
-                                          Register SrcReg, bool IsKill, int FI,
-                                          const TargetRegisterClass *RC,
-                                          const TargetRegisterInfo *TRI,
-                                          Register VReg, MachineInstr::MIFlag) const {
+void RISCSInstrInfo::storeRegToStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator I, Register SrcReg,
+    bool IsKill, int FI, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI, Register VReg, MachineInstr::MIFlag) const {
   DebugLoc DL;
   if (I != MBB.end())
     DL = I->getDebugLoc();
@@ -246,12 +245,10 @@ void RISCSInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
       .addMemOperand(MMO);
 }
 
-void RISCSInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                           MachineBasicBlock::iterator I,
-                                           Register DstReg, int FI,
-                                           const TargetRegisterClass *RC,
-                                           const TargetRegisterInfo *TRI,
-                                           Register VReg, MachineInstr::MIFlag) const {
+void RISCSInstrInfo::loadRegFromStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator I, Register DstReg,
+    int FI, const TargetRegisterClass *RC, const TargetRegisterInfo *TRI,
+    Register VReg, MachineInstr::MIFlag) const {
   DebugLoc DL;
   if (I != MBB.end())
     DL = I->getDebugLoc();
@@ -319,7 +316,7 @@ unsigned RISCSInstrInfo::getInstSizeInBytes(const MachineInstr &MI) const {
 }
 
 bool RISCSInstrInfo::getBaseAndOffsetPosition(const MachineInstr &MI,
-                                             unsigned &BasePos,
-                                             unsigned &OffsetPos) const {
+                                              unsigned &BasePos,
+                                              unsigned &OffsetPos) const {
   llvm_unreachable("");
 }

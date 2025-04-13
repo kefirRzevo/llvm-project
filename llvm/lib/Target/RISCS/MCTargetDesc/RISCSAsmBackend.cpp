@@ -20,7 +20,7 @@
 
 using namespace llvm;
 
-template<class T, unsigned N>
+template <class T, unsigned N>
 inline constexpr unsigned array_lengthof(T (&)[N]) {
   return N;
 }
@@ -42,7 +42,8 @@ std::optional<MCFixupKind> RISCSAsmBackend::getFixupKind(StringRef Name) const {
   return std::nullopt;
 }
 
-const MCFixupKindInfo &RISCSAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
+const MCFixupKindInfo &
+RISCSAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
   const static MCFixupKindInfo Infos[] = {
       // This table *must* be in the order that the fixup_* kinds are defined in
       // RISCSFixupKinds.h.
@@ -148,7 +149,7 @@ bool RISCSAsmBackend::fixupNeedsRelaxationAdvanced(
 }
 
 void RISCSAsmBackend::relaxInstruction(MCInst &Inst,
-                                        const MCSubtargetInfo &STI) const {
+                                       const MCSubtargetInfo &STI) const {
   // TODO: replace this with call to auto generated uncompressinstr() function.
   llvm_unreachable("Opcode not expected!");
 }
@@ -193,9 +194,10 @@ bool RISCSAsmBackend::relaxDwarfLineAddr(const MCAssembler &Asm,
 
     OS << uint8_t(dwarf::DW_LNE_set_address);
     Offset = OS.tell();
-    Fixup = PtrSize == 4
-                ? std::make_pair(riscs::fixup_RISCS_add_32, riscs::fixup_RISCS_sub_32)
-                : std::make_pair(riscs::fixup_RISCS_add_64, riscs::fixup_RISCS_sub_64);
+    Fixup = PtrSize == 4 ? std::make_pair(riscs::fixup_RISCS_add_32,
+                                          riscs::fixup_RISCS_sub_32)
+                         : std::make_pair(riscs::fixup_RISCS_add_64,
+                                          riscs::fixup_RISCS_sub_64);
     OS.write_zeros(PtrSize);
   } else {
     OS << uint8_t(dwarf::DW_LNS_fixed_advance_pc);
@@ -239,10 +241,8 @@ bool RISCSAsmBackend::relaxDwarfCFA(const MCAssembler &Asm,
   Fixups.clear();
   raw_svector_ostream OS(Data);
 
-  assert(
-      Asm.getContext().getAsmInfo()->getMinInstAlignment() ==
-          1 &&
-      "expected 1-byte alignment");
+  assert(Asm.getContext().getAsmInfo()->getMinInstAlignment() == 1 &&
+         "expected 1-byte alignment");
   if (Value == 0) {
     WasRelaxed = OldSize != Data.size();
     return true;
@@ -285,12 +285,12 @@ bool RISCSAsmBackend::relaxDwarfCFA(const MCAssembler &Asm,
 unsigned RISCSAsmBackend::getRelaxedOpcode(unsigned Op) const { return Op; }
 
 bool RISCSAsmBackend::mayNeedRelaxation(const MCInst &Inst,
-                                      const MCSubtargetInfo &STI) const {
+                                        const MCSubtargetInfo &STI) const {
   return getRelaxedOpcode(Inst.getOpcode()) != Inst.getOpcode();
 }
 
 bool RISCSAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
-                                 const MCSubtargetInfo *STI) const {
+                                   const MCSubtargetInfo *STI) const {
   bool HasStdExtC = false;
   unsigned MinNopLen = HasStdExtC ? 2 : 4;
 
@@ -457,10 +457,10 @@ bool RISCSAsmBackend::evaluateTargetFixup(const MCAssembler &Asm,
 }
 
 void RISCSAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
-                                  const MCValue &Target,
-                                  MutableArrayRef<char> Data, uint64_t Value,
-                                  bool IsResolved,
-                                  const MCSubtargetInfo *STI) const {
+                                 const MCValue &Target,
+                                 MutableArrayRef<char> Data, uint64_t Value,
+                                 bool IsResolved,
+                                 const MCSubtargetInfo *STI) const {
   MCFixupKind Kind = Fixup.getKind();
   if (Kind >= FirstLiteralRelocationKind)
     return;

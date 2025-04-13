@@ -58,6 +58,6 @@ public:
   void emitDirectiveOptionNoRelax() override;
 };
 
-}
+} // namespace llvm
 
 #endif // LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSTARGETSTREAMER_H

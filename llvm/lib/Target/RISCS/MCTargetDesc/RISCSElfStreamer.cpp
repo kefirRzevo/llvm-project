@@ -16,20 +16,20 @@
 #include "RISCSMCTargetDesc.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCValue.h"
-#include "llvm/MC/MCAssembler.h"
-#include "llvm/Support/LEB128.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/LEB128.h"
 
 using namespace llvm;
 
 // This part is for ELF object output.
 RISCSTargetELFStreamer::RISCSTargetELFStreamer(MCStreamer &S,
-                                                 const MCSubtargetInfo &STI)
+                                               const MCSubtargetInfo &STI)
     : RISCSTargetStreamer(S), CurrentVendor("riscs") {
   MCAssembler &MCA = getStreamer().getAssembler();
   auto &MAB = static_cast<RISCSAsmBackend &>(MCA.getBackend());
@@ -196,8 +196,8 @@ class RISCSELFStreamer : public MCELFStreamer {
 
 public:
   RISCSELFStreamer(MCContext &C, std::unique_ptr<MCAsmBackend> MAB,
-                    std::unique_ptr<MCObjectWriter> MOW,
-                    std::unique_ptr<MCCodeEmitter> MCE)
+                   std::unique_ptr<MCObjectWriter> MOW,
+                   std::unique_ptr<MCCodeEmitter> MCE)
       : MCELFStreamer(C, std::move(MAB), std::move(MOW), std::move(MCE)) {}
 
   void emitValueImpl(const MCExpr *Value, unsigned Size, SMLoc Loc) override {
@@ -225,9 +225,9 @@ public:
 
 namespace llvm {
 MCELFStreamer *createRISCSELFStreamer(MCContext &C,
-                                       std::unique_ptr<MCAsmBackend> MAB,
-                                       std::unique_ptr<MCObjectWriter> MOW,
-                                       std::unique_ptr<MCCodeEmitter> MCE) {
+                                      std::unique_ptr<MCAsmBackend> MAB,
+                                      std::unique_ptr<MCObjectWriter> MOW,
+                                      std::unique_ptr<MCCodeEmitter> MCE) {
   RISCSELFStreamer *S =
       new RISCSELFStreamer(C, std::move(MAB), std::move(MOW), std::move(MCE));
   return S;

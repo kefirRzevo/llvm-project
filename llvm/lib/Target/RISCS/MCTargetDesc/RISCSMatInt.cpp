@@ -12,13 +12,10 @@
 
 using namespace llvm;
 
-static int getInstSeqCost(RISCSMatInt::InstSeq &Res) {
-    return Res.size();
-}
+static int getInstSeqCost(RISCSMatInt::InstSeq &Res) { return Res.size(); }
 
 // Recursively generate a sequence for materializing an integer.
-static void generateInstSeqImpl(int64_t Val,
-                                RISCSMatInt::InstSeq &Res) {
+static void generateInstSeqImpl(int64_t Val, RISCSMatInt::InstSeq &Res) {
   if (isUInt<32>(Val)) {
     // Depending on the active bits in the immediate Value v, the following
     // instruction sequences are emitted:
@@ -39,8 +36,9 @@ static void generateInstSeqImpl(int64_t Val,
     return;
   }
 
-  llvm_unreachable("64 bit values are banned (due to shift ops not implemented), "
-                   "find another way, please");
+  llvm_unreachable(
+      "64 bit values are banned (due to shift ops not implemented), "
+      "find another way, please");
 }
 
 namespace llvm {

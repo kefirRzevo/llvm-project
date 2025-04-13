@@ -9,8 +9,8 @@
 #ifndef LLVM_LIB_TARGET_RISCS_MCTARGETDESC_MATINT_H
 #define LLVM_LIB_TARGET_RISCS_MCTARGETDESC_MATINT_H
 
-#include "llvm/TargetParser/SubtargetFeature.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/TargetParser/SubtargetFeature.h"
 #include <cstdint>
 
 #define GET_INSTRINFO_ENUM

@@ -95,7 +95,7 @@ enum Fixups {
   fixup_RISCS_invalid,
   NumTargetFixupKinds = fixup_RISCS_invalid - FirstTargetFixupKind
 };
-} // namespace RISCS
+} // namespace riscs
 } // end namespace llvm
 
 #endif // __LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSFIXUPKINDS_H__

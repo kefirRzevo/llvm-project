@@ -9,39 +9,36 @@
 //===----------------------------------------------------------------------===//
 
 // Target-independent type requirements, but with target-specific formats.
-def SDT_CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i64>,
-                                       SDTCisVT<1, i64>]>;
-def SDT_CallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i64>,
-                                     SDTCisVT<1, i64>]>;
+def SDT_CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i64>, SDTCisVT<1, i64>]>;
+def SDT_CallSeqEnd : SDCallSeqEnd<[SDTCisVT<0, i64>, SDTCisVT<1, i64>]>;
 
 // Target-dependent type requirements.
-def SDT_riscsCall     : SDTypeProfile<0, -1, [SDTCisVT<0, XLenVT>]>;
-def SDT_riscsSelectCC : SDTypeProfile<1, 5, [SDTCisSameAs<1, 2>,
-                                              SDTCisVT<3, OtherVT>,
-                                              SDTCisSameAs<0, 4>,
-                                              SDTCisSameAs<4, 5>]>;
-def SDT_riscsBrCC     : SDTypeProfile<0, 4, [SDTCisSameAs<0, 1>,
-                                              SDTCisVT<2, OtherVT>,
-                                              SDTCisVT<3, OtherVT>]>;
-def SDT_riscsIntBinOpW : SDTypeProfile<1, 2, [
-  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisVT<0, i64>
+def SDT_riscsCall : SDTypeProfile<0, -1, [SDTCisVT<0, XLenVT>]>;
+def SDT_riscsSelectCC : SDTypeProfile<1, 5, [
+  SDTCisSameAs<1, 2>, SDTCisVT<3, OtherVT>, SDTCisSameAs<0, 4>,
+  SDTCisSameAs<4, 5>
 ]>;
+def SDT_riscsBrCC : SDTypeProfile<0, 4, [
+  SDTCisSameAs<0, 1>, SDTCisVT<2, OtherVT>, SDTCisVT<3, OtherVT>
+]>;
+def SDT_riscsIntBinOpW
+    : SDTypeProfile<1, 2,
+                    [SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisVT<0, i64>]>;
 
 // Target-independent nodes, but with target-specific formats.
 def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_CallSeqStart,
                            [SDNPHasChain, SDNPOutGlue]>;
-def callseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_CallSeqEnd,
-                           [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+def callseq_end : SDNode<"ISD::CALLSEQ_END", SDT_CallSeqEnd,
+                         [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
 // Target-dependent nodes.
-def riscs_call      : SDNode<"riscsISD::CALL", SDT_riscsCall,
-                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
-                              SDNPVariadic]>;
-def riscs_ret_flag  : SDNode<"riscsISD::RET_FLAG", SDTNone,
-                             [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
-def riscs_selectcc  : SDNode<"riscsISD::SELECT_CC", SDT_riscsSelectCC>;
-def riscs_brcc      : SDNode<"riscsISD::BR_CC", SDT_riscsBrCC,
-                             [SDNPHasChain]>;
+def riscs_call
+    : SDNode<"riscsISD::CALL", SDT_riscsCall,
+             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue, SDNPVariadic]>;
+def riscs_ret_flag : SDNode<"riscsISD::RET_FLAG", SDTNone,
+                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def riscs_selectcc : SDNode<"riscsISD::SELECT_CC", SDT_riscsSelectCC>;
+def riscs_brcc : SDNode<"riscsISD::BR_CC", SDT_riscsBrCC, [SDNPHasChain]>;
 
 def riscs_add_lo : SDNode<"riscsISD::ADD_LO", SDTIntBinOp>;
 def riscs_hi : SDNode<"riscsISD::HI", SDTIntUnaryOp>;
@@ -54,7 +51,7 @@ def riscs_la_tls_ie : SDNode<"riscsISD::LA_TLS_IE", SDTLoad,
 def riscs_la_tls_gd : SDNode<"riscsISD::LA_TLS_GD", SDTIntUnaryOp>;
 
 // This part doesn't work now due to ADDIW truncating all stuff to i32
-def riscs_divw  : SDNode<"riscsISD::DIVW",  SDT_riscsIntBinOpW>;
+def riscs_divw : SDNode<"riscsISD::DIVW", SDT_riscsIntBinOpW>;
 def riscs_divuw : SDNode<"riscsISD::DIVUW", SDT_riscsIntBinOpW>;
 def riscs_remuw : SDNode<"riscsISD::REMUW", SDT_riscsIntBinOpW>;
 
@@ -63,13 +60,13 @@ def riscs_remuw : SDNode<"riscsISD::REMUW", SDT_riscsIntBinOpW>;
 //===----------------------------------------------------------------------===//
 
 class ImmXLenAsmOperand<string prefix, string suffix = ""> : AsmOperandClass {
-  let Name = prefix # "ImmXLen" # suffix;
+  let Name = prefix #"ImmXLen" #suffix;
   let RenderMethod = "addImmOperands";
   let DiagnosticType = !strconcat("Invalid", Name);
 }
 
 class ImmAsmOperand<string prefix, int width, string suffix> : AsmOperandClass {
-  let Name = prefix # "Imm" # width # suffix;
+  let Name = prefix #"Imm" #width #suffix;
   let RenderMethod = "addImmOperands";
   let DiagnosticType = !strconcat("Invalid", Name);
 }
@@ -84,7 +81,7 @@ def ZeroOffsetMemOpOperand : AsmOperandClass {
 
 // Check if (add r, imm) can be optimized to (ADDI (ADDI r, imm0), imm1),
 // in which imm = imm0 + imm1 and both imm0 and imm1 are simm12.
-def AddiPair : PatLeaf<(imm), [{
+def AddiPair : PatLeaf < (imm), [{
   if (!N->hasOneUse())
     return false;
   // The immediate operand must be in range [-4096,-2049] or [2048,4094].
@@ -221,7 +218,7 @@ def bare_symbol : Operand<XLenVT> {
   let ParserMatchClass = BareSymbol;
 }
 
-def CallSymbol : AsmOperandClass {
+def CallSymbol : Asm OperandClass {
   let Name = "CallSymbol";
   let RenderMethod = "addImmOperands";
   let DiagnosticType = "InvalidCallSymbol";
@@ -229,105 +226,156 @@ def CallSymbol : AsmOperandClass {
 }
 
 // A bare symbol used in call/tail only.
-def call_symbol : Operand<XLenVT> {
-  let ParserMatchClass = CallSymbol;
-}
+def call_symbol : Operand<XLenVT> { let ParserMatchClass = CallSymbol; }
 
 //===----------------------------------------------------------------------===//
-// Inst formats
+// Inst f ormats
 //===----------------------------------------------------------------------===//
 
 include "RISCSInstrsFormats.td"
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class BranchCC_rri<bits<3> funct3, string opcodestr>
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in class BranchCC_rri<bits<3> funct3, string opcodestr>
     : riscsInstB<funct3, OPC_BRANCH, (outs),
-              (ins GPR:$rs1, GPR:$rs2, simm13_lsb0:$imm12),
-              opcodestr, "$rs1, $rs2, $imm12">,
-      Sched<[WriteJmp, ReadJmp, ReadJmp]> {
+                 (ins GPR
+                  : $rs1, GPR
+                  : $rs2, simm13_lsb0
+                  : $imm12),
+                 opcodestr, "$rs1, $rs2, $imm12">,
+    Sched<[WriteJmp, ReadJmp, ReadJmp]> {
   let isBranch = 1;
   let isTerminator = 1;
 }
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class ALU_ri<bits<3> funct3, string opcodestr>
-    : riscsInstI<funct3, OPC_OP_IMM, (outs GPR:$rd), (ins GPR:$rs1, simm12:$imm12),
-              opcodestr, "$rd, $rs1, $imm12">,
-      Sched<[WriteIALU, ReadIALU]>;
-
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in class ALU_ri<bits<3> funct3, string opcodestr>
+    : riscsInstI<funct3, OPC_OP_IMM,
+                 (outs GPR
+                  : $rd),
+                 (ins GPR
+                  : $rs1, simm12
+                  : $imm12),
+                 opcodestr, "$rd, $rs1, $imm12">,
+    Sched<[WriteIALU, ReadIALU]>;
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
-class Load_ri<bits<3> funct3, string opcodestr>
-    : riscsInstI<funct3, OPC_LOAD, (outs GPR:$rd), (ins GPR:$rs1, simm12:$imm12),
-              opcodestr, "$rd, ${imm12}(${rs1})">;
+  class Load_ri<bits<3> funct3, string opcodestr>
+      : riscsInstI<funct3, OPC_LOAD,
+                   (outs GPR
+                    : $rd),
+                   (ins GPR
+                    : $rs1, simm12
+                    : $imm12),
+                   opcodestr, "$rd, ${imm12}(${rs1})">;
 
-class HLoad_r<bits<7> funct7, bits<5> funct5, string opcodestr>
-    : riscsInstR<funct7, 0b100, OPC_SYSTEM, (outs GPR:$rd),
-              (ins GPRMemZeroOffset:$rs1), opcodestr, "$rd, $rs1"> {
-  let rs2 = funct5;
-}
+  class HLoad_r<bits<7> funct7, bits<5> funct5, string opcodestr>
+      : riscsInstR<funct7, 0b100, OPC_SYSTEM,
+                   (outs GPR
+                    : $rd),
+                   (ins GPRMemZeroOffset
+                    : $rs1),
+                   opcodestr, "$rd, $rs1"> {
+    let rs2 = funct5;
+  }
 }
 
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
-class Store_rri<bits<3> funct3, string opcodestr>
-    : riscsInstS<funct3, OPC_STORE, (outs),
-              (ins GPR:$rs2, GPR:$rs1, simm12:$imm12),
-              opcodestr, "$rs2, ${imm12}(${rs1})">;
+  class Store_rri<bits<3> funct3, string opcodestr>
+      : riscsInstS<funct3, OPC_STORE, (outs),
+                   (ins GPR
+                    : $rs2, GPR
+                    : $rs1, simm12
+                    : $imm12),
+                   opcodestr, "$rs2, ${imm12}(${rs1})">;
 }
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class Shift_ri<bits<5> imm11_7, bits<3> funct3, string opcodestr>
-    : riscsInstIShift<imm11_7, funct3, OPC_OP_IMM, (outs GPR:$rd),
-                   (ins GPR:$rs1, uimmlog2xlen:$shamt), opcodestr,
-                   "$rd, $rs1, $shamt">,
-      Sched<[WriteShiftImm, ReadShiftImm]>;
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore =
+        0 in class Shift_ri<bits<5> imm11_7, bits<3> funct3, string opcodestr>
+    : riscsInstIShift<imm11_7, funct3, OPC_OP_IMM,
+                      (outs GPR
+                       : $rd),
+                      (ins GPR
+                       : $rs1, uimmlog2xlen
+                       : $shamt),
+                      opcodestr, "$rd, $rs1, $shamt">,
+    Sched<[WriteShiftImm, ReadShiftImm]>;
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class ALU_rr<bits<7> funct7, bits<3> funct3, string opcodestr>
-    : riscsInstR<funct7, funct3, OPC_OP, (outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
-              opcodestr, "$rd, $rs1, $rs2">;
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore =
+        0 in class ALU_rr<bits<7> funct7, bits<3> funct3, string opcodestr>
+    : riscsInstR<funct7, funct3, OPC_OP,
+                 (outs GPR
+                  : $rd),
+                 (ins GPR
+                  : $rs1, GPR
+                  : $rs2),
+                 opcodestr, "$rd, $rs1, $rs2">;
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class ALUW_rr<bits<7> funct7, bits<3> funct3, string opcodestr>
-    : riscsInstR<funct7, funct3, OPC_OP_32, (outs GPR:$rd),
-              (ins GPR:$rs1, GPR:$rs2), opcodestr, "$rd, $rs1, $rs2">;
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore =
+        0 in class ALUW_rr<bits<7> funct7, bits<3> funct3, string opcodestr>
+    : riscsInstR<funct7, funct3, OPC_OP_32,
+                 (outs GPR
+                  : $rd),
+                 (ins GPR
+                  : $rs1, GPR
+                  : $rs2),
+                 opcodestr, "$rd, $rs1, $rs2">;
 
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
-let isReMaterializable = 1, isAsCheapAsAMove = 1 in
-def LUI : riscsInstU<OPC_LUI, (outs GPR:$rd), (ins uimm20_lui:$imm20),
-                  "lui", "$rd, $imm20">, Sched<[WriteIALU]>;
+  let isReMaterializable = 1,
+      isAsCheapAsAMove = 1 in def LUI : riscsInstU<OPC_LUI,
+                                                   (outs GPR
+                                                    : $rd),
+                                                   (ins uimm20_lui
+                                                    : $imm20),
+                                                   "lui", "$rd, $imm20">,
+      Sched<[WriteIALU]>;
 
-def AUIPC : riscsInstU<OPC_AUIPC, (outs GPR:$rd), (ins uimm20_auipc:$imm20),
-                    "auipc", "$rd, $imm20">, Sched<[WriteIALU]>;
+  def AUIPC : riscsInstU<OPC_AUIPC,
+                         (outs GPR
+                          : $rd),
+                         (ins uimm20_auipc
+                          : $imm20),
+                         "auipc", "$rd, $imm20">,
+              Sched<[WriteIALU]>;
 
-let isCall = 1 in
-def JAL : riscsInstJ<OPC_JAL, (outs GPR:$rd), (ins simm21_lsb0_jal:$imm20),
-                  "jal", "$rd, $imm20">, Sched<[WriteJal]>;
+  let isCall = 1 in def JAL : riscsInstJ<OPC_JAL,
+                                         (outs GPR
+                                          : $rd),
+                                         (ins simm21_lsb0_jal
+                                          : $imm20),
+                                         "jal", "$rd, $imm20">,
+      Sched<[WriteJal]>;
 
-let isCall = 1 in
-def JALR : riscsInstI<0b000, OPC_JALR, (outs GPR:$rd),
-                   (ins GPR:$rs1, simm12:$imm12),
-                   "jalr", "$rd, ${imm12}(${rs1})">,
-           Sched<[WriteJalr, ReadJalr]>;
+  let isCall = 1 in def JALR : riscsInstI<0b000, OPC_JALR,
+                                          (outs GPR
+                                           : $rd),
+                                          (ins GPR
+                                           : $rs1, simm12
+                                           : $imm12),
+                                          "jalr", "$rd, ${imm12}(${rs1})">,
+      Sched<[WriteJalr, ReadJalr]>;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
-def BEQ  : BranchCC_rri<0b000, "beq">;
-def BNE  : BranchCC_rri<0b001, "bne">;
-def BLT  : BranchCC_rri<0b100, "blt">;
-def BGE  : BranchCC_rri<0b101, "bge">;
+def BEQ : BranchCC_rri<0b000, "beq">;
+def BNE : BranchCC_rri<0b001, "bne">;
+def BLT : BranchCC_rri<0b100, "blt">;
+def BGE : BranchCC_rri<0b101, "bge">;
 def BLTU : BranchCC_rri<0b110, "bltu">;
 def BGEU : BranchCC_rri<0b111, "bgeu">;
 
-def LB  : Load_ri<0b000, "lb">, Sched<[WriteLDB, ReadMemBase]>;
-def LH  : Load_ri<0b001, "lh">, Sched<[WriteLDH, ReadMemBase]>;
-def LW  : Load_ri<0b010, "lw">, Sched<[WriteLDW, ReadMemBase]>;
+def LB : Load_ri<0b000, "lb">, Sched<[WriteLDB, ReadMemBase]>;
+def LH : Load_ri<0b001, "lh">, Sched<[WriteLDH, ReadMemBase]>;
+def LW : Load_ri<0b010, "lw">, Sched<[WriteLDW, ReadMemBase]>;
 def LBU : Load_ri<0b100, "lbu">, Sched<[WriteLDB, ReadMemBase]>;
 def LHU : Load_ri<0b101, "lhu">, Sched<[WriteLDH, ReadMemBase]>;
 
@@ -335,73 +383,95 @@ def SB : Store_rri<0b000, "sb">, Sched<[WriteSTB, ReadStoreData, ReadMemBase]>;
 def SH : Store_rri<0b001, "sh">, Sched<[WriteSTH, ReadStoreData, ReadMemBase]>;
 def SW : Store_rri<0b010, "sw">, Sched<[WriteSTW, ReadStoreData, ReadMemBase]>;
 
-def LWU   : Load_ri<0b110, "lwu">, Sched<[WriteLDW, ReadMemBase]>;
-def LD    : Load_ri<0b011, "ld">, Sched<[WriteLDD, ReadMemBase]>;
-def SD    : Store_rri<0b011, "sd">, Sched<[WriteSTD, ReadStoreData, ReadMemBase]>;
+def LWU : Load_ri<0b110, "lwu">, Sched<[WriteLDW, ReadMemBase]>;
+def LD : Load_ri<0b011, "ld">, Sched<[WriteLDD, ReadMemBase]>;
+def SD : Store_rri<0b011, "sd">, Sched<[WriteSTD, ReadStoreData, ReadMemBase]>;
 
 // Temporary banned
 // def SLLI : Shift_ri<0b00000, 0b001, "slli">;
 // def SRLI : Shift_ri<0b00000, 0b101, "srli">;
 // def SRAI : Shift_ri<0b01000, 0b101, "srai">;
 
-def ADDI  : ALU_ri<0b000, "addi">;
+def ADDI : ALU_ri<0b000, "addi">;
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-def ADDIW : riscsInstI<0b000, OPC_OP_IMM_32, (outs GPR:$rd),
-                    (ins GPR:$rs1, simm12:$imm12),
-                    "addiw", "$rd, $rs1, $imm12">,
-            Sched<[WriteIALU32, ReadIALU32]>;
+let hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in def ADDIW : riscsInstI<0b000, OPC_OP_IMM_32,
+                                           (outs GPR
+                                            : $rd),
+                                           (ins GPR
+                                            : $rs1, simm12
+                                            : $imm12),
+                                           "addiw", "$rd, $rs1, $imm12">,
+    Sched<[WriteIALU32, ReadIALU32]>;
 
-def ADD  : ALU_rr<0b0000000, 0b000, "add">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-def SUB  : ALU_rr<0b0100000, 0b000, "sub">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// def SLL  : ALU_rr<0b0000000, 0b001, "sll">, Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
-// def SLT  : ALU_rr<0b0000000, 0b010, "slt">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// def SLTU : ALU_rr<0b0000000, 0b011, "sltu">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-def XOR  : ALU_rr<0b0000000, 0b100, "xor">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// def SRL  : ALU_rr<0b0000000, 0b101, "srl">, Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
-// def SRA  : ALU_rr<0b0100000, 0b101, "sra">, Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
-def OR   : ALU_rr<0b0000000, 0b110, "or">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-def AND  : ALU_rr<0b0000000, 0b111, "and">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+def ADD : ALU_rr<0b0000000, 0b000, "add">,
+          Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+def SUB : ALU_rr<0b0100000, 0b000, "sub">,
+          Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+// def SLL  : ALU_rr<0b0000000, 0b001, "sll">, Sched<[WriteShiftReg,
+// ReadShiftReg, ReadShiftReg]>; def SLT  : ALU_rr<0b0000000, 0b010, "slt">,
+// Sched<[WriteIALU, ReadIALU, ReadIALU]>; def SLTU : ALU_rr<0b0000000, 0b011,
+// "sltu">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+def XOR : ALU_rr<0b0000000, 0b100, "xor">,
+          Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+// def SRL  : ALU_rr<0b0000000, 0b101, "srl">, Sched<[WriteShiftReg,
+// ReadShiftReg, ReadShiftReg]>; def SRA  : ALU_rr<0b0100000, 0b101, "sra">,
+// Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
+def OR : ALU_rr<0b0000000, 0b110, "or">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+def AND : ALU_rr<0b0000000, 0b111, "and">,
+          Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 
-def MUL     : ALU_rr<0b0000001, 0b000, "mul">,
-              Sched<[WriteIMul, ReadIMul, ReadIMul]>;
+def MUL : ALU_rr<0b0000001, 0b000, "mul">,
+          Sched<[WriteIMul, ReadIMul, ReadIMul]>;
 
-def DIV     : ALU_rr<0b0000001, 0b100, "div">,
-              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
-def DIVU    : ALU_rr<0b0000001, 0b101, "divu">,
-              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
-def REM     : ALU_rr<0b0000001, 0b110, "rem">,
-              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
-def REMU    : ALU_rr<0b0000001, 0b111, "remu">,
-              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def DIV : ALU_rr<0b0000001, 0b100, "div">,
+          Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def DIVU : ALU_rr<0b0000001, 0b101, "divu">,
+           Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def REM : ALU_rr<0b0000001, 0b110, "rem">,
+          Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def REMU : ALU_rr<0b0000001, 0b111, "remu">,
+           Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
 
-def DIVW    : ALUW_rr<0b0000001, 0b100, "divw">,
-              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
-def DIVUW   : ALUW_rr<0b0000001, 0b101, "divuw">,
-              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
-def REMW    : ALUW_rr<0b0000001, 0b110, "remw">,
-              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
-def REMUW   : ALUW_rr<0b0000001, 0b111, "remuw">,
-              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def DIVW : ALUW_rr<0b0000001, 0b100, "divw">,
+           Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def DIVUW : ALUW_rr<0b0000001, 0b101, "divuw">,
+            Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def REMW : ALUW_rr<0b0000001, 0b110, "remw">,
+           Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def REMUW : ALUW_rr<0b0000001, 0b111, "remuw">,
+            Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
 
 // def SLTI  : ALU_ri<0b010, "slti">;
 // def SLTIU : ALU_ri<0b011, "sltiu">;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1 in {
-def XORI  : ALU_ri<0b100, "xori">;
-def ORI   : ALU_ri<0b110, "ori">;
+  def XORI : ALU_ri<0b100, "xori">;
+  def ORI : ALU_ri<0b110, "ori">;
 }
 
-def ANDI  : ALU_ri<0b111, "andi">;
+def ANDI : ALU_ri<0b111, "andi">;
 
-def FLUSH : riscsInst0ins0out<0b1111111, 0b000, OPC_INTRINSIC,
-    (outs), (ins), "flush", "", [(int_riscs_flush)]>;
+def FLUSH : riscsInst0ins0out<0b1111111, 0b000, OPC_INTRINSIC, (outs), (ins),
+                              "flush", "", [(int_riscs_flush)]>;
 def RAND : riscsInst0ins1out<0b1111111, 0b001, OPC_INTRINSIC,
-    (outs GPR:$rd), (ins), "rand", "$rd", []>;
+                             (outs GPR
+                              : $rd),
+                             (ins), "rand", "$rd", []>;
 def QUIT_EVENT : riscsInst0ins1out<0b1111111, 0b010, OPC_INTRINSIC,
-    (outs GPR:$rd), (ins), "quit_event", "$rd", []>;
-def SET_PIXEL : riscsInst3ins0out<0b1111111, 0b011, OPC_INTRINSIC,
-    (outs), (ins GPR:$rd, GPR:$rs1, GPR:$rs2), "set_pixel", "$rd, $rs1, $rs2", [(int_riscs_set_pixel GPR:$rd, GPR:$rs1, GPR:$rs2)]>;
+                                   (outs GPR
+                                    : $rd),
+                                   (ins), "quit_event", "$rd", []>;
+def SET_PIXEL : riscsInst3ins0out<0b1111111, 0b011, OPC_INTRINSIC, (outs),
+                                  (ins GPR
+                                   : $rd, GPR
+                                   : $rs1, GPR
+                                   : $rs2),
+                                  "set_pixel", "$rd, $rs1, $rs2",
+                                  [(int_riscs_set_pixel GPR
+                                    : $rd, GPR
+                                    : $rs1, GPR
+                                    : $rs2)]>;
 
 def : Pat<(int_riscs_rand), (RAND)>;
 def : Pat<(int_riscs_quit_event), (QUIT_EVENT)>;
@@ -417,9 +487,14 @@ def : Pat<(int_riscs_quit_event), (QUIT_EVENT)>;
 /// Branches and jumps
 
 // Match `riscs_brcc` and lower to the appropriate RISC-S branch instruction.
-class BccPat<CondCode Cond, riscsInstB Inst>
-    : Pat<(riscs_brcc GPR:$rs1, GPR:$rs2, Cond, bb:$imm12),
-          (Inst GPR:$rs1, GPR:$rs2, simm13_lsb0:$imm12)>;
+class BccPat<CondCode Cond, riscsInstB Inst> : Pat<(riscs_brcc GPR
+                                                    : $rs1, GPR
+                                                    : $rs2, Cond, bb
+                                                    : $imm12),
+                                                   (Inst GPR
+                                                    : $rs1, GPR
+                                                    : $rs2, simm13_lsb0
+                                                    : $imm12)>;
 
 def : BccPat<SETEQ, BEQ>;
 def : BccPat<SETNE, BNE>;
@@ -428,9 +503,14 @@ def : BccPat<SETGE, BGE>;
 def : BccPat<SETULT, BLTU>;
 def : BccPat<SETUGE, BGEU>;
 
-let isBarrier = 1, isBranch = 1, isTerminator = 1 in
-def PseudoBR : Pseudo<(outs), (ins simm21_lsb0_jal:$imm20), [(br bb:$imm20)]>,
-               PseudoInstExpansion<(JAL X0, simm21_lsb0_jal:$imm20)>;
+let isBarrier = 1, isBranch = 1,
+    isTerminator = 1 in def PseudoBR : Pseudo<(outs),
+                                              (ins simm21_lsb0_jal
+                                               : $imm20),
+                                              [(br bb
+                                                : $imm20)]>,
+    PseudoInstExpansion<(JAL X0, simm21_lsb0_jal
+                         : $imm20)>;
 
 // PseudoCALL is a pseudo instruction which will eventually expand to auipc
 // and jalr while encoding. This is desirable, as an auipc+jalr pair with
@@ -438,27 +518,40 @@ def PseudoBR : Pseudo<(outs), (ins simm21_lsb0_jal:$imm20), [(br bb:$imm20)]>,
 // if the offset fits in a signed 21-bit immediate.
 // Define AsmString to print "call" when compile with -S flag.
 // Define isCodeGenOnly = 0 to support parsing assembly "call" instruction.
-let isCall = 1, Defs = [X1], isCodeGenOnly = 0, Size = 8 in
-def PseudoCALL : Pseudo<(outs), (ins call_symbol:$func), []> {
+let isCall = 1, Defs = [X1], isCodeGenOnly = 0,
+    Size = 8 in def PseudoCALL : Pseudo<(outs),
+                                        (ins call_symbol
+                                         : $func),
+                                        []> {
   let AsmString = "call\t$func";
 }
 
-def : Pat<(riscs_call tglobaladdr:$func), (PseudoCALL tglobaladdr:$func)>;
-def : Pat<(riscs_call texternalsym:$func), (PseudoCALL texternalsym:$func)>;
+def : Pat<(riscs_call tglobaladdr : $func), (PseudoCALL tglobaladdr : $func)>;
+def : Pat<(riscs_call texternalsym : $func), (PseudoCALL texternalsym : $func)>;
 
+let isCall = 1,
+    Defs = [X1] in def PseudoCALLIndirect : Pseudo<(outs),
+                                                   (ins GPRJALR
+                                                    : $rs1),
+                                                   [(riscs_call GPRJALR
+                                                     : $rs1)]>,
+    PseudoInstExpansion<(JALR X1, GPR
+                         : $rs1, 0)>;
 
-let isCall = 1, Defs = [X1] in
-def PseudoCALLIndirect : Pseudo<(outs), (ins GPRJALR:$rs1),
-                                [(riscs_call GPRJALR:$rs1)]>,
-                         PseudoInstExpansion<(JALR X1, GPR:$rs1, 0)>;
+let isBarrier = 1, isReturn = 1,
+    isTerminator =
+        1 in def PseudoRET : Pseudo<(outs), (ins), [(riscs_ret_flag)]>,
+    PseudoInstExpansion<(JALR X0, X1, 0)>;
 
-let isBarrier = 1, isReturn = 1, isTerminator = 1 in
-def PseudoRET : Pseudo<(outs), (ins), [(riscs_ret_flag)]>,
-                PseudoInstExpansion<(JALR X0, X1, 0)>;
-
-let isBarrier = 1, isBranch = 1, isIndirectBranch = 1, isTerminator = 1 in
-def PseudoBRIND : Pseudo<(outs), (ins GPRJALR:$rs1, simm12:$imm12), []>,
-                  PseudoInstExpansion<(JALR X0, GPR:$rs1, simm12:$imm12)>;
+let isBarrier = 1, isBranch = 1, isIndirectBranch = 1,
+    isTerminator = 1 in def PseudoBRIND : Pseudo<(outs),
+                                                 (ins GPRJALR
+                                                  : $rs1, simm12
+                                                  : $imm12),
+                                                 []>,
+    PseudoInstExpansion<(JALR X0, GPR
+                         : $rs1, simm12
+                         : $imm12)>;
 
 def : InstAlias<"nop", (ADDI X0, X0, 0)>;
 def : InstAlias<"ret", (JALR X0, X1, 0), 4>;
@@ -467,56 +560,57 @@ def : InstAlias<"ret", (JALR X0, X1, 0), 4>;
 // generate an arbitrary 64-bit immediate. However, the size does not really
 // matter since PseudoLI is currently only used in the AsmParser where it gets
 // expanded to real instructions immediately.
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0, Size = 32,
-    isCodeGenOnly = 0, isAsmParserOnly = 1 in
-def PseudoLI : Pseudo<(outs GPR:$rd), (ins ixlenimm_li:$imm), [],
-                      "li", "$rd, $imm">;
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0, Size = 32, isCodeGenOnly = 0,
+    isAsmParserOnly = 1 in def PseudoLI : Pseudo<(outs GPR
+                                                  : $rd),
+                                                 (ins ixlenimm_li
+                                                  : $imm),
+                                                 [], "li", "$rd, $imm">;
 
-def PseudoLB  : PseudoLoad<"lb">;
+def PseudoLB : PseudoLoad<"lb">;
 def PseudoLBU : PseudoLoad<"lbu">;
-def PseudoLH  : PseudoLoad<"lh">;
+def PseudoLH : PseudoLoad<"lh">;
 def PseudoLHU : PseudoLoad<"lhu">;
-def PseudoLW  : PseudoLoad<"lw">;
+def PseudoLW : PseudoLoad<"lw">;
 
-def PseudoSB  : PseudoStore<"sb">;
-def PseudoSH  : PseudoStore<"sh">;
-def PseudoSW  : PseudoStore<"sw">;
+def PseudoSB : PseudoStore<"sb">;
+def PseudoSH : PseudoStore<"sh">;
+def PseudoSW : PseudoStore<"sw">;
 
 def PseudoLWU : PseudoLoad<"lwu">;
-def PseudoLD  : PseudoLoad<"ld">;
-def PseudoSD  : PseudoStore<"sd">;
+def PseudoLD : PseudoLoad<"ld">;
+def PseudoSD : PseudoStore<"sd">;
 
-def : Pat<(brind GPRJALR:$rs1), (PseudoBRIND GPRJALR:$rs1, 0)>;
-def : Pat<(brind (add GPRJALR:$rs1, simm12:$imm12)),
-          (PseudoBRIND GPRJALR:$rs1, simm12:$imm12)>;
+def : Pat<(brind GPRJALR : $rs1), (PseudoBRIND GPRJALR : $rs1, 0)>;
+def : Pat<(brind(add GPRJALR
+                 : $rs1, simm12
+                 : $imm12)),
+          (PseudoBRIND GPRJALR
+           : $rs1, simm12
+           : $imm12)>;
 
 let EmitPriority = 0 in {
-def : InstAlias<"lb $rd, (${rs1})",
-                (LB  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"lh $rd, (${rs1})",
-                (LH  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"lw $rd, (${rs1})",
-                (LW  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"lbu $rd, (${rs1})",
-                (LBU  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"lhu $rd, (${rs1})",
-                (LHU  GPR:$rd, GPR:$rs1, 0)>;
+  def : InstAlias<"lb $rd, (${rs1})", (LB GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"lh $rd, (${rs1})", (LH GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"lw $rd, (${rs1})", (LW GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"lbu $rd, (${rs1})", (LBU GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"lhu $rd, (${rs1})", (LHU GPR : $rd, GPR : $rs1, 0)>;
 
-def : InstAlias<"sb $rs2, (${rs1})",
-                (SB  GPR:$rs2, GPR:$rs1, 0)>;
-def : InstAlias<"sh $rs2, (${rs1})",
-                (SH  GPR:$rs2, GPR:$rs1, 0)>;
-def : InstAlias<"sw $rs2, (${rs1})",
-                (SW  GPR:$rs2, GPR:$rs1, 0)>;
+  def : InstAlias<"sb $rs2, (${rs1})", (SB GPR : $rs2, GPR : $rs1, 0)>;
+  def : InstAlias<"sh $rs2, (${rs1})", (SH GPR : $rs2, GPR : $rs1, 0)>;
+  def : InstAlias<"sw $rs2, (${rs1})", (SW GPR : $rs2, GPR : $rs1, 0)>;
 
-def : InstAlias<"lwu $rd, (${rs1})",
-                (LWU  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"ld $rd, (${rs1})",
-                (LD  GPR:$rd, GPR:$rs1, 0)>;
-def : InstAlias<"sd $rs2, (${rs1})",
-                (SD  GPR:$rs2, GPR:$rs1, 0)>;
+  def : InstAlias<"lwu $rd, (${rs1})", (LWU GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"ld $rd, (${rs1})", (LD GPR : $rd, GPR : $rs1, 0)>;
+  def : InstAlias<"sd $rs2, (${rs1})", (SD GPR : $rs2, GPR : $rs1, 0)>;
 }
-def IsOrAdd: PatFrag<(ops node:$A, node:$B), (or node:$A, node:$B), [{
+def IsOrAdd : PatFrag < (ops node
+                         : $A, node
+                         : $B),
+    (or node
+     : $A, node
+     : $B),
+    [{
   return isOrEquivalentToAdd(N);
 }]>;
 

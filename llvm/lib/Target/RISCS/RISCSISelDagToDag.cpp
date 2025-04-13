@@ -1,6 +1,6 @@
 #include "MCTargetDesc/RISCSMCTargetDesc.h"
+#include "MCTargetDesc/RISCSMatInt.h"
 #include "RISCSTargetMachine.h"
-#include "RISCSMatInt.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAG.h"
@@ -46,18 +46,17 @@ public:
 
   RISCSDAGToDAGISelLegacy(RISCSTargetMachine &TM, CodeGenOptLevel OptLevel)
       : SelectionDAGISelLegacy(
-            ID, std::make_unique<RISCSDAGToDAGISel>(TM, OptLevel)){}
+            ID, std::make_unique<RISCSDAGToDAGISel>(TM, OptLevel)) {}
 
   StringRef getPassName() const override {
     return "riscs DAG->DAG Pattern Instruction Selection";
   }
 };
 
-
 /// This pass converts a legalized DAG into a riscs-specific DAG, ready for
 /// instruction scheduling.
 FunctionPass *createRISCSISelDag(RISCSTargetMachine &TM,
-                                  CodeGenOptLevel OptLevel) {
+                                 CodeGenOptLevel OptLevel) {
   return new RISCSDAGToDAGISelLegacy(TM, OptLevel);
 }
 

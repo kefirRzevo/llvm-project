@@ -14,6 +14,4 @@
 
 using namespace llvm;
 
-unsigned RISCSMCObjectFileInfo::getTextSectionAlignment() const {
-  return 4;
-}
+unsigned RISCSMCObjectFileInfo::getTextSectionAlignment() const { return 4; }

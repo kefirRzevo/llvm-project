@@ -1,12 +1,12 @@
-#include "MCTargetDesc/RISCSInfo.h"
 #include "RISCSRegisterInfo.h"
+#include "MCTargetDesc/RISCSInfo.h"
 #include "RISCSInstrsInfo.h"
 #include "RISCSSubtarget.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -20,7 +20,8 @@ using namespace llvm;
 
 RISCSRegisterInfo::RISCSRegisterInfo() : RISCSGenRegisterInfo(riscs::X1) {}
 
-const MCPhysReg *RISCSRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+const MCPhysReg *
+RISCSRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (MF->getFunction().getCallingConv() == CallingConv::GHC)
     return CSR_NoRegs_SaveList;
 
@@ -36,13 +37,14 @@ BitVector RISCSRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
-bool RISCSRegisterInfo::requiresRegisterScavenging(const MachineFunction &MF) const {
+bool RISCSRegisterInfo::requiresRegisterScavenging(
+    const MachineFunction &MF) const {
   return false;
 }
 
 bool RISCSRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                             int SPAdj, unsigned FIOperandNum,
-                                             RegScavenger *RS) const {
+                                            int SPAdj, unsigned FIOperandNum,
+                                            RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected non-zero SPAdj value");
 
   MachineInstr &MI = *II;
@@ -70,8 +72,9 @@ Register RISCSRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return TFI->hasFP(MF) ? riscs::X8 : riscs::X2;
 }
 
-const uint32_t *RISCSRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
-                                                         CallingConv::ID CC) const {
+const uint32_t *
+RISCSRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                        CallingConv::ID CC) const {
   auto &Subtarget = MF.getSubtarget<RISCSSubtarget>();
 
   if (CC == CallingConv::GHC)

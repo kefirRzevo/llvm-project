@@ -11,6 +11,6 @@ using namespace llvm;
 void RISCSSubtarget::anchor() {}
 
 RISCSSubtarget::RISCSSubtarget(const Triple &TT, const std::string &CPU,
-                             const std::string &FS, const TargetMachine &TM)
+                               const std::string &FS, const TargetMachine &TM)
     : RISCSGenSubtargetInfo(TT, CPU, /*TuneCPU=*/CPU, FS), InstrInfo(*this),
       FrameLowering(*this), TLInfo(TM, *this) {}

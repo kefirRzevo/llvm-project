@@ -35,7 +35,7 @@ def RISCSInstrInfo : InstrInfo;
 //===----------------------------------------------------------------------===//
 
 class Proc<string Name, list<SubtargetFeature> Features>
- : Processor<Name, NoItineraries, Features>;
+    : Processor<Name, NoItineraries, Features>;
 
 def : Proc<"generic", []>;
 
@@ -44,6 +44,4 @@ def RISCSAsmParser : AsmParser {
   let AllowDuplicateRegisterNames = 1;
 }
 
-def RISCS : Target {
-  let InstructionSet = RISCSInstrInfo;
-}
+def RISCS : Target { let InstructionSet = RISCSInstrInfo; }

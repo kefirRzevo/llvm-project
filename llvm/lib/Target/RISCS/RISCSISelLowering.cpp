@@ -1,8 +1,8 @@
+#include "RISCSISelLowering.h"
 #include "RISCSMachineFunctionInfo.h"
 #include "RISCSRegisterInfo.h"
 #include "RISCSSubtarget.h"
 #include "RISCSTargetMachine.h"
-#include "RISCSISelLowering.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -23,16 +23,16 @@
 
 using namespace llvm;
 
-static const MCPhysReg ArgGPRs[] = {riscs::X10, riscs::X11, riscs::X12, riscs::X13,
-                                    riscs::X14, riscs::X15, riscs::X16, riscs::X17};
+static const MCPhysReg ArgGPRs[] = {riscs::X10, riscs::X11, riscs::X12,
+                                    riscs::X13, riscs::X14, riscs::X15,
+                                    riscs::X16, riscs::X17};
 
-template<class T, unsigned N>
-inline unsigned array_lengthof(T (&)[N]) {
+template <class T, unsigned N> inline unsigned array_lengthof(T (&)[N]) {
   return N;
 }
 
 RISCSTargetLowering::RISCSTargetLowering(const TargetMachine &TM,
-                                           const RISCSSubtarget &STI)
+                                         const RISCSSubtarget &STI)
     : TargetLowering(TM), Subtarget(STI) {
   addRegisterClass(MVT::i64, &riscs::GPRRegClass);
 
@@ -127,9 +127,9 @@ static SDValue convertLocVTToValVT(SelectionDAG &DAG, SDValue Val,
 // Pass a 2*XLEN argument that has been split into two XLEN values through
 // registers or the stack as necessary.
 static bool CC_RISCSAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
-                                 ISD::ArgFlagsTy ArgFlags1, unsigned ValNo2,
-                                 MVT ValVT2, MVT LocVT2,
-                                 ISD::ArgFlagsTy ArgFlags2) {
+                                ISD::ArgFlagsTy ArgFlags1, unsigned ValNo2,
+                                MVT ValVT2, MVT LocVT2,
+                                ISD::ArgFlagsTy ArgFlags2) {
   unsigned XLenInBytes = XLen / 8;
   if (Register Reg = State.AllocateReg(ArgGPRs)) {
     // At least one half can be passed via register.
@@ -165,10 +165,10 @@ static bool CC_RISCSAssign2XLen(unsigned XLen, CCState &State, CCValAssign VA1,
 
 // Implements the RISC-V calling convention. Returns true upon failure.
 static bool CC_RISCS(const DataLayout &DL, riscsABI::ABI ABI, unsigned ValNo,
-                      MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
-                      ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
-                      bool IsRet, Type *OrigTy, const RISCSTargetLowering &TLI,
-                      std::optional<unsigned> FirstMaskArgument) {
+                     MVT ValVT, MVT LocVT, CCValAssign::LocInfo LocInfo,
+                     ISD::ArgFlagsTy ArgFlags, CCState &State, bool IsFixed,
+                     bool IsRet, Type *OrigTy, const RISCSTargetLowering &TLI,
+                     std::optional<unsigned> FirstMaskArgument) {
   unsigned XLen = DL.getLargestLegalIntTypeSizeInBits();
   assert(XLen == 64);
   MVT XLenVT = MVT::i64;
@@ -227,7 +227,7 @@ static bool CC_RISCS(const DataLayout &DL, riscsABI::ABI ABI, unsigned ValNo,
     PendingLocs.clear();
     PendingArgFlags.clear();
     return CC_RISCSAssign2XLen(XLen, State, VA, AF, ValNo, ValVT, LocVT,
-                             ArgFlags);
+                               ArgFlags);
   }
 
   // Allocate to a register if possible, or else a stack slot.
@@ -326,7 +326,7 @@ void RISCSTargetLowering::analyzeInputArgs(
 // Lower a call to a callseq_start + CALL + callseq_end chain, and add input
 // and output parameter nodes.
 SDValue RISCSTargetLowering::LowerCall(CallLoweringInfo &CLI,
-                                        SmallVectorImpl<SDValue> &InVals) const {
+                                       SmallVectorImpl<SDValue> &InVals) const {
   SelectionDAG &DAG = CLI.DAG;
   SDLoc &DL = CLI.DL;
   SmallVectorImpl<ISD::OutputArg> &Outs = CLI.Outs;
@@ -769,7 +769,8 @@ SDValue RISCSTargetLowering::LowerFormalArguments(
 
 bool RISCSTargetLowering::CanLowerReturn(
     CallingConv::ID CallConv, MachineFunction &MF, bool IsVarArg,
-    const SmallVectorImpl<ISD::OutputArg> &Outs, LLVMContext &Context, const Type *RetTy) const {
+    const SmallVectorImpl<ISD::OutputArg> &Outs, LLVMContext &Context,
+    const Type *RetTy) const {
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, IsVarArg, MF, RVLocs, Context);
 
@@ -779,9 +780,9 @@ bool RISCSTargetLowering::CanLowerReturn(
     MVT VT = Outs[i].VT;
     ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
     riscsABI::ABI ABI = MF.getSubtarget<RISCSSubtarget>().getTargetABI();
-    if (CC_RISCS(MF.getDataLayout(), ABI, i, VT, VT, CCValAssign::Full, ArgFlags,
-               CCInfo, /*IsFixed=*/true, /*IsRet=*/true, nullptr, *this,
-               FirstMaskArgument))
+    if (CC_RISCS(MF.getDataLayout(), ABI, i, VT, VT, CCValAssign::Full,
+                 ArgFlags, CCInfo, /*IsFixed=*/true, /*IsRet=*/true, nullptr,
+                 *this, FirstMaskArgument))
       return false;
   }
   return true;
@@ -789,10 +790,10 @@ bool RISCSTargetLowering::CanLowerReturn(
 
 SDValue
 RISCSTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
-                                  bool IsVarArg,
-                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
-                                  const SmallVectorImpl<SDValue> &OutVals,
-                                  const SDLoc &DL, SelectionDAG &DAG) const {
+                                 bool IsVarArg,
+                                 const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                 const SmallVectorImpl<SDValue> &OutVals,
+                                 const SDLoc &DL, SelectionDAG &DAG) const {
   // Stores the assignment of the return value to a location.
   SmallVector<CCValAssign, 16> RVLocs;
 
@@ -842,7 +843,7 @@ RISCSTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 //===----------------------------------------------------------------------===//
 
 SDValue RISCSTargetLowering::PerformDAGCombine(SDNode *N,
-                                                DAGCombinerInfo &DCI) const {
+                                               DAGCombinerInfo &DCI) const {
   return {};
 }
 
@@ -853,9 +854,9 @@ SDValue RISCSTargetLowering::PerformDAGCombine(SDNode *N,
 /// Return true if the addressing mode represented by AM is legal for this
 /// target, for a load/store of the specified type.
 bool RISCSTargetLowering::isLegalAddressingMode(const DataLayout &DL,
-                                                 const AddrMode &AM, Type *Ty,
-                                                 unsigned AS,
-                                                 Instruction *I) const {
+                                                const AddrMode &AM, Type *Ty,
+                                                unsigned AS,
+                                                Instruction *I) const {
   // No global is ever allowed as a base.
   if (AM.BaseGV)
     return false;
@@ -912,7 +913,8 @@ SDValue RISCSTargetLowering::lowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
                      LHS, RHS, TargetCC, Block);
 }
 
-SDValue RISCSTargetLowering::lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const {
+SDValue RISCSTargetLowering::lowerFRAMEADDR(SDValue Op,
+                                            SelectionDAG &DAG) const {
   const RISCSRegisterInfo &RI = *Subtarget.getRegisterInfo();
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -926,7 +928,8 @@ SDValue RISCSTargetLowering::lowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const
   return FrameAddr;
 }
 
-SDValue RISCSTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+SDValue RISCSTargetLowering::LowerOperation(SDValue Op,
+                                            SelectionDAG &DAG) const {
   switch (Op->getOpcode()) {
   case ISD::BR_CC:
     return lowerBR_CC(Op, DAG);

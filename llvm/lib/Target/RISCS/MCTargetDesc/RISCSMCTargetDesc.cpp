@@ -1,4 +1,5 @@
-//===-- RISCSMCTargetDesc.cpp - RISCS Target Descriptions -------------------===//
+//===-- RISCSMCTargetDesc.cpp - RISCS Target Descriptions
+//-------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,14 +9,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "RISCSInfo.h"
 #include "RISCSMCTargetDesc.h"
-#include "TargetInfo/RISCSTargetInfo.h"
-#include "RISCSInstPrinter.h"
 #include "RISCSElfStreamer.h"
-#include "RISCSObjectFileInfo.h"
+#include "RISCSInfo.h"
+#include "RISCSInstPrinter.h"
 #include "RISCSMCAsmInfo.h"
+#include "RISCSObjectFileInfo.h"
 #include "RISCSTargetStreamer.h"
+#include "TargetInfo/RISCSTargetInfo.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -55,14 +56,14 @@ static MCRegisterInfo *createRISCSMCRegisterInfo(const Triple &TT) {
   return X;
 }
 
-static MCSubtargetInfo *createRISCSMCSubtargetInfo(const Triple &TT,
-                                                    StringRef CPU, StringRef FS) {
+static MCSubtargetInfo *
+createRISCSMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
   return createRISCSMCSubtargetInfoImpl(TT, CPU, /*TuneCPU=*/CPU, FS);
 }
 
 static MCAsmInfo *createRISCSMCAsmInfo(const MCRegisterInfo &MRI,
-                                        const Triple &TT,
-                                        const MCTargetOptions &Options) {
+                                       const Triple &TT,
+                                       const MCTargetOptions &Options) {
   MCAsmInfo *MAI = new RISCSMCAsmInfo(TT);
   MCRegister SP = MRI.getDwarfRegNum(riscs::X2, true);
   MCCFIInstruction Inst = MCCFIInstruction::cfiDefCfa(nullptr, SP, 0);
@@ -71,22 +72,22 @@ static MCAsmInfo *createRISCSMCAsmInfo(const MCRegisterInfo &MRI,
 }
 
 static MCInstPrinter *createRISCSMCInstPrinter(const Triple &T,
-                                                unsigned SyntaxVariant,
-                                                const MCAsmInfo &MAI,
-                                                const MCInstrInfo &MII,
-                                                const MCRegisterInfo &MRI) {
+                                               unsigned SyntaxVariant,
+                                               const MCAsmInfo &MAI,
+                                               const MCInstrInfo &MII,
+                                               const MCRegisterInfo &MRI) {
   return new RISCSInstPrinter(MAI, MII, MRI);
 }
 
-static MCTargetStreamer *createRISCSTargetAsmStreamer(MCStreamer &S,
-                                                       formatted_raw_ostream &OS,
-                                                       MCInstPrinter *InstPrint) {
+static MCTargetStreamer *
+createRISCSTargetAsmStreamer(MCStreamer &S, formatted_raw_ostream &OS,
+                             MCInstPrinter *InstPrint) {
   return new RISCSTargetStreamer(S);
 }
 
 static MCObjectFileInfo *
 createRISCSMCObjectFileInfo(MCContext &Ctx, bool PIC,
-                             bool LargeCodeModel = false) {
+                            bool LargeCodeModel = false) {
   MCObjectFileInfo *MOFI = new RISCSMCObjectFileInfo();
   MOFI->initMCObjectFileInfo(Ctx, PIC, LargeCodeModel);
   return MOFI;
@@ -136,11 +137,11 @@ static MCTargetStreamer *createRISCSNullTargetStreamer(MCStreamer &S) {
 
 namespace {
 MCStreamer *createRISCSELFStreamer(const Triple &T, MCContext &Context,
-                                    std::unique_ptr<MCAsmBackend> &&MAB,
-                                    std::unique_ptr<MCObjectWriter> &&MOW,
-                                    std::unique_ptr<MCCodeEmitter> &&MCE) {
+                                   std::unique_ptr<MCAsmBackend> &&MAB,
+                                   std::unique_ptr<MCObjectWriter> &&MOW,
+                                   std::unique_ptr<MCCodeEmitter> &&MCE) {
   return createRISCSELFStreamer(Context, std::move(MAB), std::move(MOW),
-                                 std::move(MCE));
+                                std::move(MCE));
 }
 } // end anonymous namespace
 
@@ -151,27 +152,32 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRISCSTargetMC() {
   RegisterMCAsmInfoFn X(TheRISCSTarget, createRISCSMCAsmInfo);
 
   // Register the MC instruction info.
-  TargetRegistry::RegisterMCObjectFileInfo(TheRISCSTarget, createRISCSMCObjectFileInfo);
+  TargetRegistry::RegisterMCObjectFileInfo(TheRISCSTarget,
+                                           createRISCSMCObjectFileInfo);
   TargetRegistry::RegisterMCInstrInfo(TheRISCSTarget, createRISCSMCInstrInfo);
   // Register the MC register info.
   TargetRegistry::RegisterMCRegInfo(TheRISCSTarget, createRISCSMCRegisterInfo);
 
   TargetRegistry::RegisterMCAsmBackend(TheRISCSTarget, createRISCSAsmBackend);
-  TargetRegistry::RegisterMCCodeEmitter(TheRISCSTarget, createRISCSMCCodeEmitter);
-  TargetRegistry::RegisterMCInstPrinter(TheRISCSTarget, createRISCSMCInstPrinter);
+  TargetRegistry::RegisterMCCodeEmitter(TheRISCSTarget,
+                                        createRISCSMCCodeEmitter);
+  TargetRegistry::RegisterMCInstPrinter(TheRISCSTarget,
+                                        createRISCSMCInstPrinter);
   // Register the MC subtarget info.
   TargetRegistry::RegisterMCSubtargetInfo(TheRISCSTarget,
                                           createRISCSMCSubtargetInfo);
   TargetRegistry::RegisterELFStreamer(TheRISCSTarget, createRISCSELFStreamer);
   TargetRegistry::RegisterObjectTargetStreamer(TheRISCSTarget,
                                                createRISCSObjectTargetStreamer);
-  TargetRegistry::RegisterMCInstrAnalysis(TheRISCSTarget, createRISCSInstrAnalysis);
+  TargetRegistry::RegisterMCInstrAnalysis(TheRISCSTarget,
+                                          createRISCSInstrAnalysis);
   // Register the MCInstPrinter
-  TargetRegistry::RegisterMCInstPrinter(TheRISCSTarget, createRISCSMCInstPrinter);
+  TargetRegistry::RegisterMCInstPrinter(TheRISCSTarget,
+                                        createRISCSMCInstPrinter);
 
   TargetRegistry::RegisterAsmTargetStreamer(TheRISCSTarget,
                                             createRISCSTargetAsmStreamer);
 
   TargetRegistry::RegisterNullTargetStreamer(TheRISCSTarget,
-                                               createRISCSNullTargetStreamer);
+                                             createRISCSNullTargetStreamer);
 }

@@ -27,13 +27,14 @@ void RISCSInstPrinter::printRegName(raw_ostream &O, MCRegister Reg) {
 }
 
 void RISCSInstPrinter::printInst(const MCInst *MI, uint64_t Address,
-                                  StringRef Annot, const MCSubtargetInfo &STI,
-                                  raw_ostream &O) {
+                                 StringRef Annot, const MCSubtargetInfo &STI,
+                                 raw_ostream &O) {
   printInstruction(MI, Address, O);
   printAnnotation(O, Annot);
 }
 
-void RISCSInstPrinter::printOperand(const MCInst *MI, int OpNo, raw_ostream &O) {
+void RISCSInstPrinter::printOperand(const MCInst *MI, int OpNo,
+                                    raw_ostream &O) {
   const MCOperand &MO = MI->getOperand(OpNo);
 
   if (MO.isReg()) {
@@ -51,7 +52,7 @@ void RISCSInstPrinter::printOperand(const MCInst *MI, int OpNo, raw_ostream &O) 
 }
 
 void RISCSInstPrinter::printBranchOperand(const MCInst *MI, uint64_t Address,
-                                           unsigned OpNo, raw_ostream &O) {
+                                          unsigned OpNo, raw_ostream &O) {
   const MCOperand &MO = MI->getOperand(OpNo);
   if (!MO.isImm())
     return printOperand(MI, OpNo, O);

@@ -25,7 +25,8 @@ class RISCSFunctionInfo : public MachineFunctionInfo {
 
 public:
   RISCSFunctionInfo() {}
-  explicit RISCSFunctionInfo(const Function &F, const TargetSubtargetInfo *STI) {}
+  explicit RISCSFunctionInfo(const Function &F,
+                             const TargetSubtargetInfo *STI) {}
 
   void setVarArgsFrameIndex(int Off) { VarArgsFrameIndex = Off; }
   int getVarArgsFrameIndex() const { return VarArgsFrameIndex; }

@@ -1,11 +1,11 @@
 #ifndef __LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSINFO_H__
 #define __LLVM_LIB_TARGET_RISCS_MCTARGETDESC_RISCSINFO_H__
 
-#include "llvm/MC/MCRegister.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCInstrDesc.h"
-#include "llvm/TargetParser/Triple.h"
+#include "llvm/MC/MCRegister.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace llvm {
 

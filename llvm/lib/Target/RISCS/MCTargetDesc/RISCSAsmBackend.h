@@ -24,9 +24,9 @@ class RISCSAsmBackend : public MCAsmBackend {
 
 public:
   RISCSAsmBackend(const MCSubtargetInfo &STI, uint8_t OSABI, bool Is64Bit,
-                const MCTargetOptions &Options)
-      : MCAsmBackend(endianness::little), STI(STI), OSABI(OSABI), Is64Bit(Is64Bit),
-        TargetOptions(Options) {}
+                  const MCTargetOptions &Options)
+      : MCAsmBackend(endianness::little), STI(STI), OSABI(OSABI),
+        Is64Bit(Is64Bit), TargetOptions(Options) {}
   ~RISCSAsmBackend() override {}
 
   void setForceRelocs() { ForceRelocs = true; }
@@ -39,10 +39,10 @@ public:
   bool shouldInsertFixupForCodeAlign(MCAssembler &Asm,
                                      MCAlignFragment &AF) override;
 
-  bool evaluateTargetFixup(const MCAssembler &Asm,
-                           const MCFixup &Fixup, const MCFragment *DF,
-                           const MCValue &Target, const MCSubtargetInfo *STI,
-                           uint64_t &Value, bool &WasForced) override;
+  bool evaluateTargetFixup(const MCAssembler &Asm, const MCFixup &Fixup,
+                           const MCFragment *DF, const MCValue &Target,
+                           const MCSubtargetInfo *STI, uint64_t &Value,
+                           bool &WasForced) override;
 
   void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                   const MCValue &Target, MutableArrayRef<char> Data,

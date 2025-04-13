@@ -1,10 +1,10 @@
 #ifndef __LLVM_LIB_TARGET_SIM_SIMTARGETMACHINE_H__
 #define __LLVM_LIB_TARGET_SIM_SIMTARGETMACHINE_H__
 
-#include "RISCSSubtarget.h"
 #include "MCTargetDesc/RISCSMCTargetDesc.h"
-#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
+#include "RISCSSubtarget.h"
 #include "llvm/CodeGen/CodeGenTargetMachineImpl.h"
+#include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include <optional>
 
@@ -17,8 +17,9 @@ class RISCSTargetMachine : public CodeGenTargetMachineImpl {
 public:
   RISCSTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                      StringRef FS, const TargetOptions &Options,
-                     std::optional<Reloc::Model> RM, std::optional<CodeModel::Model> CM,
-                     CodeGenOptLevel OL, bool JIT);
+                     std::optional<Reloc::Model> RM,
+                     std::optional<CodeModel::Model> CM, CodeGenOptLevel OL,
+                     bool JIT);
   ~RISCSTargetMachine() override;
 
   const RISCSSubtarget *getSubtargetImpl() const { return &Subtarget; }
@@ -38,7 +39,7 @@ public:
 };
 
 FunctionPass *createRISCSISelDag(RISCSTargetMachine &TM,
-                                  CodeGenOptLevel OptLevel);
+                                 CodeGenOptLevel OptLevel);
 
 } // end namespace llvm
 
