@@ -218,7 +218,7 @@ def bare_symbol : Operand<XLenVT> {
   let ParserMatchClass = BareSymbol;
 }
 
-def CallSymbol : Asm OperandClass {
+def CallSymbol : AsmOperandClass {
   let Name = "CallSymbol";
   let RenderMethod = "addImmOperands";
   let DiagnosticType = "InvalidCallSymbol";
@@ -408,15 +408,18 @@ def ADD : ALU_rr<0b0000000, 0b000, "add">,
           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 def SUB : ALU_rr<0b0100000, 0b000, "sub">,
           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// def SLL  : ALU_rr<0b0000000, 0b001, "sll">, Sched<[WriteShiftReg,
-// ReadShiftReg, ReadShiftReg]>; def SLT  : ALU_rr<0b0000000, 0b010, "slt">,
-// Sched<[WriteIALU, ReadIALU, ReadIALU]>; def SLTU : ALU_rr<0b0000000, 0b011,
-// "sltu">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+def SLL : ALU_rr<0b0000000, 0b001, "sll">,
+          Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
+// def SLT : ALU_rr<0b0000000, 0b010, "slt">,
+//           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
+// def SLTU : ALU_rr<0b0000000, 0b011, "sltu">,
+//            Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 def XOR : ALU_rr<0b0000000, 0b100, "xor">,
           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
-// def SRL  : ALU_rr<0b0000000, 0b101, "srl">, Sched<[WriteShiftReg,
-// ReadShiftReg, ReadShiftReg]>; def SRA  : ALU_rr<0b0100000, 0b101, "sra">,
-// Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
+def SRL : ALU_rr<0b0000000, 0b101, "srl">, Sched<[WriteShiftReg,
+          ReadShiftReg, ReadShiftReg]>;
+def SRA : ALU_rr<0b0100000, 0b101, "sra">,
+          Sched<[WriteShiftReg, ReadShiftReg, ReadShiftReg]>;
 def OR : ALU_rr<0b0000000, 0b110, "or">, Sched<[WriteIALU, ReadIALU, ReadIALU]>;
 def AND : ALU_rr<0b0000000, 0b111, "and">,
           Sched<[WriteIALU, ReadIALU, ReadIALU]>;
@@ -648,7 +651,9 @@ def : PatGprSimm12<xor, XORI>;
 // def : PatGprUimmLog2XLen<shl, SLLI>;
 // def : PatGprUimmLog2XLen<srl, SRLI>;
 // def : PatGprUimmLog2XLen<sra, SRAI>;
-
+def : PatGprGpr<shl, SLL>;
+def : PatGprGpr<srl, SRL>;
+def : PatGprGpr<sra, SRA>;
 def : PatGprGpr<mul, MUL>;
 def : PatGprGpr<sdiv, DIV>;
 def : PatGprGpr<udiv, DIVU>;

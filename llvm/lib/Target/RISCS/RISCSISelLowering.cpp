@@ -59,9 +59,9 @@ RISCSTargetLowering::RISCSTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::UNDEF, MVT::i64, Legal);
 
   // Some problems with these nodes now
-  // setOperationAction(ISD::SRA, MVT::i64, Legal);
-  // setOperationAction(ISD::SRL, MVT::i64, Legal);
-  // setOperationAction(ISD::SHL, MVT::i64, Legal);
+  setOperationAction(ISD::SRA, MVT::i64, Legal);
+  setOperationAction(ISD::SRL, MVT::i64, Legal);
+  setOperationAction(ISD::SHL, MVT::i64, Legal);
 
   setOperationAction(ISD::BR_CC, MVT::i64, Custom);
 

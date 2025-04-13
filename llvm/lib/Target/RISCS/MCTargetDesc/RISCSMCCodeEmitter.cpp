@@ -314,6 +314,8 @@ unsigned RISCSMCCodeEmitter::getImmOpValue(const MCInst &MI, unsigned OpNo,
       FixupKind = riscs::fixup_RISCS_jal;
     } else if (MIFrm == riscsII::InstFormatB) {
       FixupKind = riscs::fixup_RISCS_branch;
+    } else if (MIFrm == riscsII::InstFormatU) {
+      FixupKind = riscs::fixup_RISCS_call;
     } else {
       llvm_unreachable("Unhandled fixup");
     }

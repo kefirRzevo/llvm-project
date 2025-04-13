@@ -16,7 +16,7 @@ static int getInstSeqCost(RISCSMatInt::InstSeq &Res) { return Res.size(); }
 
 // Recursively generate a sequence for materializing an integer.
 static void generateInstSeqImpl(int64_t Val, RISCSMatInt::InstSeq &Res) {
-  if (isUInt<32>(Val)) {
+  if (isInt<32>(Val)) {
     // Depending on the active bits in the immediate Value v, the following
     // instruction sequences are emitted:
     //
@@ -35,10 +35,26 @@ static void generateInstSeqImpl(int64_t Val, RISCSMatInt::InstSeq &Res) {
     }
     return;
   }
+  int64_t Lo12 = SignExtend64<12>(Val);
+  Val = (uint64_t)Val - (uint64_t)Lo12;
 
-  llvm_unreachable(
-      "64 bit values are banned (due to shift ops not implemented), "
-      "find another way, please");
+  int ShiftAmount = 0;
+  if (!isInt<32>(Val)) {
+    ShiftAmount = llvm::countr_zero((uint64_t)Val);
+    Val >>= ShiftAmount;
+
+    if (ShiftAmount > 12 && !isInt<12>(Val)) {
+      if (isInt<32>((uint64_t)Val << 12)) {
+        ShiftAmount -= 12;
+        Val = (uint64_t)Val << 12;
+      }
+    }
+  }
+
+  generateInstSeqImpl(Val, Res);
+
+  if (Lo12)
+    Res.emplace_back(riscs::ADDI, Lo12);
 }
 
 namespace llvm {
