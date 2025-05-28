@@ -221,7 +221,7 @@ private:
   using IKey = std::pair<AllowedRegVecPtr, AllowedRegVecPtr>;
   using IMatrixCache = DenseMap<IKey, PBQPRAGraph::MatrixPtr>;
   using DisjointAllowedRegsCache = DenseSet<IKey>;
-  using IEdgeKey = std::pair<PBQP::GraphBase::NodeId, PBQP::GraphBase::NodeId>;
+  using IEdgeKey = std::pair<GraphBase::NodeId, GraphBase::NodeId>;
   using IEdgeCache = DenseSet<IEdgeKey>;
 
   bool haveDisjointAllowedRegs(const PBQPRAGraph &G, PBQPRAGraph::NodeId NId,
@@ -258,7 +258,7 @@ private:
   // to save us from looking up node ids via the VRegToNode map in the graph
   // metadata.
   using IntervalInfo =
-      std::tuple<LiveInterval*, size_t, PBQP::GraphBase::NodeId>;
+      std::tuple<LiveInterval*, size_t, GraphBase::NodeId>;
 
   static SlotIndex getStartPoint(const IntervalInfo &I) {
     return std::get<0>(I)->segments[std::get<1>(I)].start;
@@ -268,7 +268,7 @@ private:
     return std::get<0>(I)->segments[std::get<1>(I)].end;
   }
 
-  static PBQP::GraphBase::NodeId getNodeId(const IntervalInfo &I) {
+  static GraphBase::NodeId getNodeId(const IntervalInfo &I) {
     return std::get<2>(I);
   }
 
@@ -365,9 +365,9 @@ public:
 
       // At this point we know that Cur overlaps all active intervals. Add the
       // interference edges.
-      PBQP::GraphBase::NodeId NId = getNodeId(Cur);
+      GraphBase::NodeId NId = getNodeId(Cur);
       for (const auto &A : Active) {
-        PBQP::GraphBase::NodeId MId = getNodeId(A);
+        GraphBase::NodeId MId = getNodeId(A);
 
         // Do not add an edge when the nodes' allowed registers do not
         // intersect: there is obviously no interference.

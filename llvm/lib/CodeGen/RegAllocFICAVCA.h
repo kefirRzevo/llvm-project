@@ -18,10 +18,10 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/CodeGen/FICAVCA/Graph.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PBQP/CostAllocator.h"
 #include "llvm/CodeGen/PBQP/Solution.h"
 #include "llvm/CodeGen/Register.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/MC/MCRegister.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -49,9 +49,9 @@ class raw_ostream;
 namespace FICAVCA {
 namespace RegAlloc {
 
-template <typename SolverTy> using Graph = FICAVCA::Graph<SolverTy>;
-template <typename ValueT> using ValuePool = PBQP::ValuePool<ValueT>;
-using GraphBase = PBQP::GraphBase;
+template <typename SolverT> using Graph = FICAVCA::Graph<SolverT>;
+// template <typename ValueT> using ValuePool = PBQP::ValuePool<ValueT>;
+
 using Solution = PBQP::Solution;
 using Float = float;
 
@@ -67,9 +67,9 @@ class AllowedRegVector : std::vector<MCRegister> {
 public:
   AllowedRegVector() = default;
   AllowedRegVector(const AllowedRegVector &) = delete;
-  AllowedRegVector& operator=(const AllowedRegVector &) = delete;
+  AllowedRegVector &operator=(const AllowedRegVector &) = delete;
   AllowedRegVector(AllowedRegVector &&) = default;
-  AllowedRegVector& operator=(AllowedRegVector &&) = default;
+  AllowedRegVector &operator=(AllowedRegVector &&) = default;
 
   AllowedRegVector(const std::vector<MCRegister> &OptVec)
       : BaseVector(OptVec) {}
@@ -94,21 +94,21 @@ private:
 };
 
 struct hash_value {
-hash_code operator()(const AllowedRegVector &OptRegs) const {
-  assert(OptRegs.size() > 0 && "OptRegs is empty");
-  const MCRegister *OStart = &OptRegs.front();
-  const MCRegister *OEnd = &OptRegs.back();
-  return hash_combine(OptRegs.size(), hash_combine_range(OStart, OEnd));
-}
+  hash_code operator()(const AllowedRegVector &OptRegs) const {
+    assert(OptRegs.size() > 0 && "OptRegs is empty");
+    const MCRegister *OStart = &OptRegs.front();
+    const MCRegister *OEnd = &OptRegs.back();
+    return hash_combine(OptRegs.size(), hash_combine_range(OStart, OEnd));
+  }
 };
 
 /// Holds graph-level metadata relevant to FICAVCA RA problems.
 class GraphMetadata {
-  //using AllowedRegVecPool = ValuePool<AllowedRegVector>;
+  // using AllowedRegVecPool = ValuePool<AllowedRegVector>;
 
 public:
   using NodeId = GraphBase::NodeId;
-  using AllowedRegVecRef = const AllowedRegVector*;
+  using AllowedRegVecRef = const AllowedRegVector *;
 
   GraphMetadata(MachineFunction &MF, LiveIntervals &LIS,
                 MachineBlockFrequencyInfo &MBFI)
@@ -180,10 +180,20 @@ public:
   using NodeId = GraphBase::NodeId;
   using EdgeId = GraphBase::EdgeId;
 
+  struct EmptyData {};
+  using NodeData = EmptyData;
   using NodeMetadata = RegAlloc::NodeMetadata;
-  struct EdgeMetadata {};
+  using EdgeData = EmptyData;
+  using EdgeMetadata = EmptyData;
   using GraphMetadata = RegAlloc::GraphMetadata;
   using GraphTy = Graph<RegAllocSolverImpl>;
+
+  void handleAddNode(NodeId) {}
+  void handleAddEdge(EdgeId) {}
+  void handleRemoveNode(NodeId) {}
+  void handleRemoveEdge(EdgeId) {}
+  void handleDisconnectEdge(EdgeId, NodeId) {}
+  void handleReconnectEdge(EdgeId, NodeId) {}
 
   RegAllocSolverImpl(GraphTy &G) : G(G) {}
 
@@ -202,9 +212,6 @@ public:
       const NodeMetadata &NM = G.getNodeMetadata(NId);
       S.setSelection(NId, NM.Color);
     }
-    // for (auto EId : G.edgeIds()) {
-    //   outs() << G.getEdgeNode1Id(EId) << " - " << G.getEdgeNode2Id(EId) << "\n";
-    // }
     return S;
   }
 
@@ -217,9 +224,13 @@ public:
       NodeId N2Id = G.getEdgeNode2Id(EId);
       NodeMetadata &NM1 = G.getNodeMetadata(N1Id);
       NodeMetadata &NM2 = G.getNodeMetadata(N2Id);
-      if (NM1.Colored && NM2.Colored && (NM1.Color == getSpillOptionIdx() || NM2.Color == getSpillOptionIdx()))
+      if (NM1.Colored && NM2.Colored &&
+          (NM1.Color == getSpillOptionIdx() ||
+           NM2.Color == getSpillOptionIdx()))
         return true;
-      return NM1.Colored && NM2.Colored && NM1.getAllowedRegs()[NM1.Color-1] != NM2.getAllowedRegs()[NM2.Color-1];
+      return NM1.Colored && NM2.Colored &&
+             NM1.getAllowedRegs()[NM1.Color - 1] !=
+                 NM2.getAllowedRegs()[NM2.Color - 1];
     });
   }
 
@@ -319,14 +330,15 @@ private:
       }
     }
     const AllowedRegVector &AllowedRegs = NM.getAllowedRegs();
-    auto Found = std::find_if(AllowedRegs.begin(), AllowedRegs.end(),
-                              [&](const MCRegister &PReg) {
-                                unsigned PRegId = PReg.id();
-                                bool Overlap = std::any_of(AdjColors.begin(), AdjColors.end(), [&](unsigned AdjPReg) {
-                                  return TRI.regsOverlap(PRegId, AdjPReg);
-                                });
-                                return !Overlap && AdjColors.count(PReg.id()) == 0;
-                              });
+    auto Found = std::find_if(
+        AllowedRegs.begin(), AllowedRegs.end(), [&](const MCRegister &PReg) {
+          unsigned PRegId = PReg.id();
+          bool Overlap = std::any_of(AdjColors.begin(), AdjColors.end(),
+                                     [&](unsigned AdjPReg) {
+                                       return TRI.regsOverlap(PRegId, AdjPReg);
+                                     });
+          return !Overlap && AdjColors.count(PReg.id()) == 0;
+        });
     if (Found != AllowedRegs.end()) {
       NM.Color = std::distance(AllowedRegs.begin(), Found) + 1;
       UsedColors.emplace(Found->id());
@@ -369,12 +381,12 @@ class FICAVCARAGraph : public Graph<RegAllocSolverImpl> {
     OS << "ColorIdx " << NM.Color << "|";
     unsigned Color = NM.Color;
     if (Color != getSpillOptionIdx()) {
-      Color = NM.getAllowedRegs()[Color-1].id();
+      Color = NM.getAllowedRegs()[Color - 1].id();
     }
     OS << "Color " << Color << "|";
     OS << "Purity " << llvm::format("%.2f", NM.Purity) << "|";
     OS << "VoteWeight " << NM.VoteWeight << "|";
-    const AllowedRegVector& AR = NM.getAllowedRegs();
+    const AllowedRegVector &AR = NM.getAllowedRegs();
     OS << "AllowedRegs [";
     std::string Separator;
     for (MCRegister MReg : AR) {
@@ -404,7 +416,7 @@ public:
       const NodeMetadata &NM = getNodeMetadata(NId);
       OS << "\tnode_" << NId << "[label = \"Id " << NId << "|";
       complicatedVertexDump(OS, NM);
-      OS << "Neighbors " << adjEdgeIds(NId).size() << "\"];\n";
+      OS << "Neighbors " << this->adjEdgeIds(NId).size() << "\"];\n";
     }
     for (auto Id : edgeIds()) {
       NodeId V1 = getEdgeNode1Id(Id);
@@ -433,8 +445,7 @@ inline Solution solve(FICAVCARAGraph &G) {
 } // end namespace FICAVCA
 
 /// Create a FICAVCA register allocator instance.
-FunctionPass *
-createFICAVCARegisterAllocator(char *customPassID = nullptr);
+FunctionPass *createFICAVCARegisterAllocator(char *customPassID = nullptr);
 
 } // end namespace llvm
 

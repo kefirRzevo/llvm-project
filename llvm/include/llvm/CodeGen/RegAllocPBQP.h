@@ -281,7 +281,9 @@ public:
   using NodeId = GraphBase::NodeId;
   using EdgeId = GraphBase::EdgeId;
 
+  using NodeData = CostAllocator::VectorPtr;
   using NodeMetadata = RegAlloc::NodeMetadata;
+  using EdgeData = CostAllocator::MatrixPtr;
   struct EdgeMetadata {};
   using GraphMetadata = RegAlloc::GraphMetadata;
 

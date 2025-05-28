@@ -73,31 +73,34 @@ using namespace RegAlloc;
 #define DEBUG_TYPE "regalloc"
 
 static RegisterRegAlloc
-RegisterFICAVCARepAlloc("ficavca", "FICAVCA register allocator",
-                        createDefaultFICAVCARegisterAllocator);
+    RegisterFICAVCARepAlloc("ficavca", "FICAVCA register allocator",
+                            createDefaultFICAVCARegisterAllocator);
 
 #ifndef NDEBUG
-static cl::opt<bool>
-PBQPDumpGraphs("ficavca-dump-graphs",
-               cl::desc("Dump graphs for each function/round in the compilation unit."),
-               cl::init(false), cl::Hidden);
+static cl::opt<bool> PBQPDumpGraphs(
+    "ficavca-dump-graphs",
+    cl::desc("Dump graphs for each function/round in the compilation unit."),
+    cl::init(false), cl::Hidden);
 #endif
 
 namespace llvm {
-void printGraph(VirtRegMap &VRM, MachineFunction &MF, LiveIntervals &LIS, const char* Name);
+void printGraph(VirtRegMap &VRM, MachineFunction &MF, LiveIntervals &LIS,
+                const char *Name);
 }
 namespace {
 
-/// RegAllocFICAVCA provides a minimal implementation of the basic register allocation
-/// algorithm. It prioritizes live virtual registers by spill weight and spills
-/// whenever a register is unavailable. This is not practical in production but
-/// provides a useful baseline both for measuring other allocators and comparing
-/// the speed of the basic algorithm against other styles of allocators.
+/// RegAllocFICAVCA provides a minimal implementation of the basic register
+/// allocation algorithm. It prioritizes live virtual registers by spill weight
+/// and spills whenever a register is unavailable. This is not practical in
+/// production but provides a useful baseline both for measuring other
+/// allocators and comparing the speed of the basic algorithm against other
+/// styles of allocators.
 class RegAllocFICAVCA : public MachineFunctionPass {
 public:
   static char ID;
 
-  RegAllocFICAVCA(char *customPassID = nullptr) : MachineFunctionPass(ID), customPassID(customPassID) {
+  RegAllocFICAVCA(char *customPassID = nullptr)
+      : MachineFunctionPass(ID), customPassID(customPassID) {
     initializeSlotIndexesWrapperPassPass(*PassRegistry::getPassRegistry());
     initializeLiveIntervalsWrapperPassPass(*PassRegistry::getPassRegistry());
     initializeLiveStacksWrapperLegacyPass(*PassRegistry::getPassRegistry());
@@ -105,7 +108,9 @@ public:
   }
 
   /// Return the pass name.
-  StringRef getPassName() const override { return "FICAVCA Register Allocator"; }
+  StringRef getPassName() const override {
+    return "FICAVCA Register Allocator";
+  }
 
   /// FICAVCA analysis usage.
   void getAnalysisUsage(AnalysisUsage &AU) const override;
@@ -210,8 +215,7 @@ private:
   // for the fast interference graph construction algorithm. The last is there
   // to save us from looking up node ids via the VRegToNode map in the graph
   // metadata.
-  using IntervalInfo =
-      std::tuple<LiveInterval *, size_t, PBQP::GraphBase::NodeId>;
+  using IntervalInfo = std::tuple<LiveInterval *, size_t, GraphBase::NodeId>;
 
   static SlotIndex getStartPoint(const IntervalInfo &I) {
     return std::get<0>(I)->segments[std::get<1>(I)].start;
@@ -221,7 +225,7 @@ private:
     return std::get<0>(I)->segments[std::get<1>(I)].end;
   }
 
-  static PBQP::GraphBase::NodeId getNodeId(const IntervalInfo &I) {
+  static GraphBase::NodeId getNodeId(const IntervalInfo &I) {
     return std::get<2>(I);
   }
 
@@ -311,9 +315,9 @@ public:
 
       // At this point we know that Cur overlaps all active intervals. Add the
       // interference edges.
-      PBQP::GraphBase::NodeId NId = getNodeId(Cur);
+      GraphBase::NodeId NId = getNodeId(Cur);
       for (const auto &A : Active) {
-        PBQP::GraphBase::NodeId MId = getNodeId(A);
+        GraphBase::NodeId MId = getNodeId(A);
 
         // Do not add an edge when the nodes' allowed registers do not
         // intersect: there is obviously no interference.
@@ -397,7 +401,7 @@ void RegAllocFICAVCA::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void RegAllocFICAVCA::findVRegIntervalsToAlloc(const MachineFunction &MF,
-                                         LiveIntervals &LIS) {
+                                               LiveIntervals &LIS) {
   const MachineRegisterInfo &MRI = MF.getRegInfo();
 
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
@@ -409,7 +413,7 @@ void RegAllocFICAVCA::findVRegIntervalsToAlloc(const MachineFunction &MF,
 }
 
 void RegAllocFICAVCA::initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
-                                Spiller &VRegSpiller) {
+                                      Spiller &VRegSpiller) {
   MachineFunction &MF = G.getMetadata().MF;
 
   LiveIntervals &LIS = G.getMetadata().LIS;
@@ -492,18 +496,18 @@ void RegAllocFICAVCA::initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
 
     auto &VRegAllowed = KV.second;
 
-    FICAVCARAGraph::NodeId NId = G.addNode();
+    GraphBase::NodeId NId = G.addNode();
     G.getNodeMetadata(NId).setVReg(VReg);
     G.getNodeMetadata(NId).setAllowedRegs(
-      G.getMetadata().getAllowedRegs(std::move(VRegAllowed)));
+        G.getMetadata().getAllowedRegs(std::move(VRegAllowed)));
     G.getMetadata().setNodeIdForVReg(VReg, NId);
   }
 }
 
 void RegAllocFICAVCA::spillVReg(Register VReg,
-                          SmallVectorImpl<Register> &NewIntervals,
-                          MachineFunction &MF, LiveIntervals &LIS,
-                          VirtRegMap &VRM, Spiller &VRegSpiller) {
+                                SmallVectorImpl<Register> &NewIntervals,
+                                MachineFunction &MF, LiveIntervals &LIS,
+                                VirtRegMap &VRM, Spiller &VRegSpiller) {
   VRegsToAlloc.erase(VReg);
   LiveRangeEdit LRE(&LIS.getInterval(VReg), NewIntervals, MF, LIS, &VRM,
                     nullptr, &DeadRemats);
@@ -527,8 +531,9 @@ void RegAllocFICAVCA::spillVReg(Register VReg,
 }
 
 bool RegAllocFICAVCA::mapFICAVCAToRegAlloc(const FICAVCARAGraph &G,
-                                     const Solution &Solution, VirtRegMap &VRM,
-                                     Spiller &VRegSpiller) {
+                                           const Solution &Solution,
+                                           VirtRegMap &VRM,
+                                           Spiller &VRegSpiller) {
   MachineFunction &MF = G.getMetadata().MF;
   LiveIntervals &LIS = G.getMetadata().LIS;
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
@@ -565,7 +570,7 @@ bool RegAllocFICAVCA::mapFICAVCAToRegAlloc(const FICAVCARAGraph &G,
 }
 
 void RegAllocFICAVCA::finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
-                              VirtRegMap &VRM) const {
+                                    VirtRegMap &VRM) const {
   MachineRegisterInfo &MRI = MF.getRegInfo();
 
   // First allocate registers for the empty intervals.
@@ -591,7 +596,8 @@ void RegAllocFICAVCA::finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
   }
 }
 
-void RegAllocFICAVCA::postOptimization(Spiller &VRegSpiller, LiveIntervals &LIS) {
+void RegAllocFICAVCA::postOptimization(Spiller &VRegSpiller,
+                                       LiveIntervals &LIS) {
   VRegSpiller.postOptimization();
   /// Remove dead defs because of rematerialization.
   for (auto *DeadInst : DeadRemats) {
@@ -627,7 +633,8 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
 
   MF.getRegInfo().freezeReservedRegs();
 
-  LLVM_DEBUG(dbgs() << "FICAVCA Register Allocating for " << MF.getName() << "\n");
+  LLVM_DEBUG(dbgs() << "FICAVCA Register Allocating for " << MF.getName()
+                    << "\n");
 
   // Allocator main loop:
   //
@@ -644,7 +651,7 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
 #ifndef NDEBUG
   const Function &F = MF.getFunction();
   std::string FullyQualifiedName =
-    F.getParent()->getModuleIdentifier() + "." + F.getName().str();
+      F.getParent()->getModuleIdentifier() + "." + F.getName().str();
 #endif
 
   // If there are non-empty intervals allocate them using pbqp.
@@ -670,8 +677,8 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
       if (1) {
         std::ostringstream RS;
         RS << Round;
-        std::string GraphFileName = FullyQualifiedName + "." + RS.str() +
-                                    ".ficavcagraph";
+        std::string GraphFileName =
+            FullyQualifiedName + "." + RS.str() + ".ficavcagraph";
         std::error_code EC;
         raw_fd_ostream OS(GraphFileName, EC, sys::fs::OF_TextWithCRLF);
         LLVM_DEBUG(dbgs() << "Dumping graph for round " << Round << " to \""
@@ -698,11 +705,10 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
   return true;
 }
 
-
 FunctionPass *llvm::createFICAVCARegisterAllocator(char *customPassID) {
   return new RegAllocFICAVCA(customPassID);
 }
 
-FunctionPass* llvm::createDefaultFICAVCARegisterAllocator() {
+FunctionPass *llvm::createDefaultFICAVCARegisterAllocator() {
   return createFICAVCARegisterAllocator();
 }
