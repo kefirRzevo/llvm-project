@@ -1,4 +1,4 @@
-//===-- RegAllocBasic.cpp - Basic Register Allocator ----------------------===//
+//===- RegAllocPBQP.cpp ---- PBQP Register Allocator ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,28 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the RegAllocFICAVCA function pass, which provides a minimal
-// implementation of the basic register allocator.
+// This file contains a Partitioned Boolean Quadratic Programming (PBQP) based
+// register allocator for LLVM. This allocator works by constructing a PBQP
+// problem representing the register allocation problem under consideration,
+// solving this using a PBQP solver, and mapping the solution back to a
+// register assignment. If any variables are selected for spilling then spill
+// code is inserted and the process repeated.
+//
+// The PBQP solver (pbqp.c) provided for this allocator uses a heuristic tuned
+// for register allocation. For more information on PBQP for register
+// allocation, see the following papers:
+//
+//   (1) Hames, L. and Scholz, B. 2006. Nearly optimal register allocation with
+//   PBQP. In Proceedings of the 7th Joint Modular Languages Conference
+//   (JMLC'06). LNCS, vol. 4228. Springer, New York, NY, USA. 346-361.
+//
+//   (2) Scholz, B., Eckstein, E. 2002. Register allocation for irregular
+//   architectures. In Proceedings of the Joint Conference on Languages,
+//   Compilers and Tools for Embedded Systems (LCTES'02), ACM Press, New York,
+//   NY, USA, 139-148.
 //
 //===----------------------------------------------------------------------===//
 
-#include "RegAllocFICAVCA.h"
 #include "RegisterCoalescer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
@@ -23,7 +39,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
-#include "llvm/CodeGen/FICAVCARAConstraint.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/LiveRangeEdit.h"
@@ -35,6 +50,11 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/PBQP/Graph.h"
+#include "llvm/CodeGen/PBQP/Math.h"
+#include "llvm/CodeGen/PBQP/Solution.h"
+#include "llvm/CodeGen/PBQPRAConstraint.h"
+#include "llvm/CodeGen/RegAllocPBQP.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/CodeGen/Spiller.h"
@@ -63,43 +83,25 @@
 #include <string>
 #include <system_error>
 #include <tuple>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 using namespace llvm;
-using namespace FICAVCA;
-using namespace RegAlloc;
 
-#define DEBUG_TYPE "regalloc"
-
-static RegisterRegAlloc
-    RegisterFICAVCARepAlloc("ficavca", "FICAVCA register allocator",
-                            createDefaultFICAVCARegisterAllocator);
-
-#ifndef NDEBUG
-static cl::opt<bool> FICAVCADumpGraphs(
-    "ficavca-dump-graphs",
-    cl::desc("Dump graphs for each function/round in the compilation unit."),
-    cl::init(false), cl::Hidden);
-#endif
-
-namespace llvm {
-void printGraph(VirtRegMap &VRM, MachineFunction &MF, LiveIntervals &LIS,
-                const char *Name);
-}
 namespace {
 
-/// RegAllocFICAVCA provides a minimal implementation of the basic register
-/// allocation algorithm. It prioritizes live virtual registers by spill weight
-/// and spills whenever a register is unavailable. This is not practical in
-/// production but provides a useful baseline both for measuring other
-/// allocators and comparing the speed of the basic algorithm against other
-/// styles of allocators.
-class RegAllocFICAVCA : public MachineFunctionPass {
+///
+/// PBQP based allocators solve the register allocation problem by mapping
+/// register allocation problems to Partitioned Boolean Quadratic
+/// Programming problems.
+template<typename Graph>
+class GraphBaseRegAlloc : public MachineFunctionPass {
 public:
   static char ID;
 
-  RegAllocFICAVCA(char *customPassID = nullptr)
+  /// Construct a graph register allocator.
+  GraphBaseRegAlloc(char *customPassID = nullptr)
       : MachineFunctionPass(ID), customPassID(customPassID) {
     initializeSlotIndexesWrapperPassPass(*PassRegistry::getPassRegistry());
     initializeLiveIntervalsWrapperPassPass(*PassRegistry::getPassRegistry());
@@ -107,16 +109,11 @@ public:
     initializeVirtRegMapWrapperLegacyPass(*PassRegistry::getPassRegistry());
   }
 
-  /// Return the pass name.
-  StringRef getPassName() const override {
-    return "FICAVCA Register Allocator";
-  }
-
-  /// FICAVCA analysis usage.
+  /// Analysis usage.
   void getAnalysisUsage(AnalysisUsage &AU) const override;
 
-  /// Perform register allocation.
-  bool runOnMachineFunction(MachineFunction &mf) override;
+  /// Perform register allocation
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
   MachineFunctionProperties getRequiredProperties() const override {
     return MachineFunctionProperties().set(
@@ -128,63 +125,83 @@ public:
         MachineFunctionProperties::Property::IsSSA);
   }
 
-private:
+protected:
   using RegSet = std::set<Register>;
 
   char *customPassID;
 
   RegSet VRegsToAlloc, EmptyIntervalVRegs;
 
+  /// Inst which is a def of an original reg and whose defs are already all
+  /// dead after remat is saved in DeadRemats. The deletion of such inst is
+  /// postponed till all the allocations are done, so its remat expr is
+  /// always available for the remat of all the siblings of the original reg.
   SmallPtrSet<MachineInstr *, 32> DeadRemats;
 
-  void findVRegIntervalsToAlloc(const MachineFunction &MF, LiveIntervals &LIS);
+  /// Finds the initial set of vreg intervals to allocate.
+  virtual void findVRegIntervalsToAlloc(const MachineFunction &MF, LiveIntervals &LIS);
 
-  void initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
-                       Spiller &VRegSpiller);
+  /// Constructs an initial graph.
+  virtual void initializeGraph(Graph &G, VirtRegMap &VRM, Spiller &VRegSpiller);
 
-  void spillVReg(Register VReg, SmallVectorImpl<Register> &NewIntervals,
+  /// Spill the given VReg.
+  virtual void spillVReg(Register VReg, SmallVectorImpl<Register> &NewIntervals,
                  MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
                  Spiller &VRegSpiller);
 
-  bool mapFICAVCAToRegAlloc(const FICAVCARAGraph &G, const Solution &Solution,
-                            VirtRegMap &VRM, Spiller &VRegSpiller);
+  /// Given a solved PBQP problem maps this solution back to a register
+  /// assignment.
+  virtual bool mapSolutionToRegAlloc(const Graph &G,
+                             const PBQP::Solution &Solution, VirtRegMap &VRM,
+                             Spiller &VRegSpiller);
 
-  void finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
+  /// Postprocessing before final spilling. Sets basic block "live in"
+  /// variables.
+  virtual void finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
                      VirtRegMap &VRM) const;
 
-  void postOptimization(Spiller &VRegSpiller, LiveIntervals &LIS);
+  virtual void postOptimization(Spiller &VRegSpiller, LiveIntervals &LIS);
 };
-
-char RegAllocFICAVCA::ID = 0;
-
-} // end anonymous namespace
+template<typename Graph>
+char GraphBaseRegAlloc<Graph>::ID = 0;
 
 /// Set spill costs for each node in the PBQP reg-alloc graph.
-class SpillCosts : public FICAVCARAConstraint {
-public:
-  void apply(FICAVCARAGraph &G) override {
-    LiveIntervals &LIS = G.getMetadata().LIS;
-    for (auto NId : G.nodeIds()) {
-      Float SpillCost =
-          LIS.getInterval(G.getNodeMetadata(NId).getVReg()).weight();
-      NodeMetadata &NM = G.getNodeMetadata(NId);
-      NM.setSpillCost(SpillCost);
-    }
-  }
-};
+// class SpillCosts : public PBQPRAConstraint {
+// public:
+//   void apply(PBQPRAGraph &G) override {
+//     LiveIntervals &LIS = G.getMetadata().LIS;
+
+//     // A minimum spill costs, so that register constraints can be set
+//     // without normalization in the [0.0:MinSpillCost( interval.
+//     const PBQP::PBQPNum MinSpillCost = 10.0;
+
+//     for (auto NId : G.nodeIds()) {
+//       PBQP::PBQPNum SpillCost =
+//           LIS.getInterval(G.getNodeMetadata(NId).getVReg()).weight();
+//       if (SpillCost == 0.0)
+//         SpillCost = std::numeric_limits<PBQP::PBQPNum>::min();
+//       else
+//         SpillCost += MinSpillCost;
+//       PBQPRAGraph::RawVector NodeCosts(G.getNodeCosts(NId));
+//       NodeCosts[PBQP::RegAlloc::getSpillOptionIdx()] = SpillCost;
+//       G.setNodeCosts(NId, std::move(NodeCosts));
+//     }
+//   }
+// };
 
 /// Add interference edges between overlapping vregs.
-class Interference : public FICAVCARAConstraint {
+template<typename Graph>
+class Interference : public PBQPRAConstraint {
 private:
-  using NodeId = GraphBase::NodeId;
-  using EdgeId = GraphBase::EdgeId;
-  using AllowedRegVecPtr = const AllowedRegVector *;
+  using AllowedRegVecPtr = const PBQP::RegAlloc::AllowedRegVector *;
   using IKey = std::pair<AllowedRegVecPtr, AllowedRegVecPtr>;
+  using IMatrixCache = DenseMap<IKey, PBQPRAGraph::MatrixPtr>;
   using DisjointAllowedRegsCache = DenseSet<IKey>;
-  using IEdgeKey = std::pair<NodeId, NodeId>;
+  using IEdgeKey = std::pair<GraphBase::NodeId, GraphBase::NodeId>;
   using IEdgeCache = DenseSet<IEdgeKey>;
 
-  bool haveDisjointAllowedRegs(const FICAVCARAGraph &G, NodeId NId, NodeId MId,
+  bool haveDisjointAllowedRegs(const Graph &G, GraphBase::NodeId NId,
+                               GraphBase::NodeId MId,
                                const DisjointAllowedRegsCache &D) const {
     const auto *NRegs = &G.getNodeMetadata(NId).getAllowedRegs();
     const auto *MRegs = &G.getNodeMetadata(MId).getAllowedRegs();
@@ -198,7 +215,8 @@ private:
     return D.contains(IKey(MRegs, NRegs));
   }
 
-  void setDisjointAllowedRegs(const FICAVCARAGraph &G, NodeId NId, NodeId MId,
+  void setDisjointAllowedRegs(const Graph &G, GraphBase::NodeId NId,
+                              GraphBase::NodeId MId,
                               DisjointAllowedRegsCache &D) {
     const auto *NRegs = &G.getNodeMetadata(NId).getAllowedRegs();
     const auto *MRegs = &G.getNodeMetadata(MId).getAllowedRegs();
@@ -260,13 +278,18 @@ private:
   }
 
 public:
-  void apply(FICAVCARAGraph &G) override {
+  void apply(Graph &G) override {
     // The following is loosely based on the linear scan algorithm introduced in
     // "Linear Scan Register Allocation" by Poletto and Sarkar. This version
     // isn't linear, because the size of the active set isn't bound by the
     // number of registers, but rather the size of the largest clique in the
     // graph. Still, we expect this to be better than N^2.
     LiveIntervals &LIS = G.getMetadata().LIS;
+
+    // Interferenc matrices are incredibly regular - they're only a function of
+    // the allowed sets, so we cache them to avoid the overhead of constructing
+    // and uniquing them.
+    IMatrixCache C;
 
     // Finding an edge is expensive in the worst case (O(max_clique(G))). So
     // cache locally edges we have already seen.
@@ -330,7 +353,7 @@ public:
           continue;
 
         // This is a new edge - add it to the graph.
-        if (!createInterferenceEdge(G, NId, MId))
+        if (!createInterferenceEdge(G, NId, MId, C))
           setDisjointAllowedRegs(G, NId, MId, D);
         else
           EC.insert(EK);
@@ -347,19 +370,29 @@ private:
   // interference. This case occurs frequently between integer and floating
   // point registers for example.
   // return true iff both nodes interferes.
-  bool createInterferenceEdge(FICAVCARAGraph &G, NodeId NId, NodeId MId) {
+  bool createInterferenceEdge(Graph &G, GraphBase::NodeId NId,
+                              GraphBase::NodeId MId, IMatrixCache &C) {
     const TargetRegisterInfo &TRI =
         *G.getMetadata().MF.getSubtarget().getRegisterInfo();
     const auto &NRegs = G.getNodeMetadata(NId).getAllowedRegs();
     const auto &MRegs = G.getNodeMetadata(MId).getAllowedRegs();
-    // outs() << "NId " << NId << " size " << NRegs.size() << "; MId " << MId
-    //        << " size " << MRegs.size() << "\n";
+
+    // Try looking the edge costs up in the IMatrixCache first.
+    IKey K(&NRegs, &MRegs);
+    IMatrixCache::iterator I = C.find(K);
+    if (I != C.end()) {
+      G.addEdgeBypassingCostAllocator(NId, MId, I->second);
+      return true;
+    }
+
+    PBQPRAGraph::RawMatrix M(NRegs.size() + 1, MRegs.size() + 1, 0);
     bool NodesInterfere = false;
     for (unsigned I = 0; I != NRegs.size(); ++I) {
       MCRegister PRegN = NRegs[I];
       for (unsigned J = 0; J != MRegs.size(); ++J) {
         MCRegister PRegM = MRegs[J];
         if (TRI.regsOverlap(PRegN, PRegM)) {
+          M[I + 1][J + 1] = std::numeric_limits<PBQP::PBQPNum>::infinity();
           NodesInterfere = true;
         }
       }
@@ -368,18 +401,124 @@ private:
     if (!NodesInterfere)
       return false;
 
-    G.addEdge(NId, MId);
+    PBQPRAGraph::EdgeId EId = G.addEdge(NId, MId, std::move(M));
+    C[K] = G.getEdgeCostsPtr(EId);
+
     return true;
   }
 };
 
-FICAVCARAConstraint::~FICAVCARAConstraint() = default;
+template<typename Graph>
+class Coalescing : public PBQPRAConstraint {
+public:
+  void apply(Graph &G) override {
+    MachineFunction &MF = G.getMetadata().MF;
+    MachineBlockFrequencyInfo &MBFI = G.getMetadata().MBFI;
+    CoalescerPair CP(*MF.getSubtarget().getRegisterInfo());
 
-void FICAVCARAConstraint::anchor() {}
+    // Scan the machine function and add a coalescing cost whenever
+    // CoalescerPair gives the Ok.
+    for (const auto &MBB : MF) {
+      for (const auto &MI : MBB) {
+        // Skip not-coalescable or already coalesced copies.
+        if (!CP.setRegisters(&MI) || CP.getSrcReg() == CP.getDstReg())
+          continue;
 
-void FICAVCARAConstraintList::anchor() {}
+        Register DstReg = CP.getDstReg();
+        Register SrcReg = CP.getSrcReg();
 
-void RegAllocFICAVCA::getAnalysisUsage(AnalysisUsage &AU) const {
+        PBQP::PBQPNum CBenefit = MBFI.getBlockFreqRelativeToEntryBlock(&MBB);
+
+        if (CP.isPhys()) {
+          if (!MF.getRegInfo().isAllocatable(DstReg))
+            continue;
+
+          PBQPRAGraph::NodeId NId = G.getMetadata().getNodeIdForVReg(SrcReg);
+
+          const PBQPRAGraph::NodeMetadata::AllowedRegVector &Allowed =
+              G.getNodeMetadata(NId).getAllowedRegs();
+
+          unsigned PRegOpt = 0;
+          while (PRegOpt < Allowed.size() && Allowed[PRegOpt].id() != DstReg)
+            ++PRegOpt;
+
+          if (PRegOpt < Allowed.size()) {
+            PBQPRAGraph::RawVector NewCosts(G.getNodeCosts(NId));
+            NewCosts[PRegOpt + 1] -= CBenefit;
+            G.setNodeCosts(NId, std::move(NewCosts));
+          }
+        } else {
+          PBQPRAGraph::NodeId N1Id = G.getMetadata().getNodeIdForVReg(DstReg);
+          PBQPRAGraph::NodeId N2Id = G.getMetadata().getNodeIdForVReg(SrcReg);
+          const PBQPRAGraph::NodeMetadata::AllowedRegVector *Allowed1 =
+              &G.getNodeMetadata(N1Id).getAllowedRegs();
+          const PBQPRAGraph::NodeMetadata::AllowedRegVector *Allowed2 =
+              &G.getNodeMetadata(N2Id).getAllowedRegs();
+
+          PBQPRAGraph::EdgeId EId = G.findEdge(N1Id, N2Id);
+          if (EId == G.invalidEdgeId()) {
+            PBQPRAGraph::RawMatrix Costs(Allowed1->size() + 1,
+                                         Allowed2->size() + 1, 0);
+            addVirtRegCoalesce(Costs, *Allowed1, *Allowed2, CBenefit);
+            G.addEdge(N1Id, N2Id, std::move(Costs));
+          } else {
+            if (G.getEdgeNode1Id(EId) == N2Id) {
+              std::swap(N1Id, N2Id);
+              std::swap(Allowed1, Allowed2);
+            }
+            PBQPRAGraph::RawMatrix Costs(G.getEdgeCosts(EId));
+            addVirtRegCoalesce(Costs, *Allowed1, *Allowed2, CBenefit);
+            G.updateEdgeCosts(EId, std::move(Costs));
+          }
+        }
+      }
+    }
+  }
+
+private:
+  void addVirtRegCoalesce(
+      PBQPRAGraph::RawMatrix &CostMat,
+      const PBQPRAGraph::NodeMetadata::AllowedRegVector &Allowed1,
+      const PBQPRAGraph::NodeMetadata::AllowedRegVector &Allowed2,
+      PBQP::PBQPNum Benefit) {
+    assert(CostMat.getRows() == Allowed1.size() + 1 && "Size mismatch.");
+    assert(CostMat.getCols() == Allowed2.size() + 1 && "Size mismatch.");
+    for (unsigned I = 0; I != Allowed1.size(); ++I) {
+      MCRegister PReg1 = Allowed1[I];
+      for (unsigned J = 0; J != Allowed2.size(); ++J) {
+        MCRegister PReg2 = Allowed2[J];
+        if (PReg1 == PReg2)
+          CostMat[I + 1][J + 1] -= Benefit;
+      }
+    }
+  }
+};
+
+/// PBQP-specific implementation of weight normalization.
+class PBQPVirtRegAuxInfo final : public VirtRegAuxInfo {
+  float normalize(float UseDefFreq, unsigned Size, unsigned NumInstr) override {
+    // All intervals have a spill weight that is mostly proportional to the
+    // number of uses, with uses in loops having a bigger weight.
+    return NumInstr * VirtRegAuxInfo::normalize(UseDefFreq, Size, 1);
+  }
+
+public:
+  PBQPVirtRegAuxInfo(MachineFunction &MF, LiveIntervals &LIS, VirtRegMap &VRM,
+                     const MachineLoopInfo &Loops,
+                     const MachineBlockFrequencyInfo &MBFI)
+      : VirtRegAuxInfo(MF, LIS, VRM, Loops, MBFI) {}
+};
+} // end anonymous namespace
+
+// Out-of-line destructor/anchor for PBQPRAConstraint.
+PBQPRAConstraint::~PBQPRAConstraint() = default;
+
+void PBQPRAConstraint::anchor() {}
+
+void PBQPRAConstraintList::anchor() {}
+
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
   AU.addRequired<AAResultsWrapperPass>();
   AU.addPreserved<AAResultsWrapperPass>();
@@ -387,6 +526,9 @@ void RegAllocFICAVCA::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<SlotIndexesWrapperPass>();
   AU.addRequired<LiveIntervalsWrapperPass>();
   AU.addPreserved<LiveIntervalsWrapperPass>();
+  // au.addRequiredID(SplitCriticalEdgesID);
+  if (customPassID)
+    AU.addRequiredID(*customPassID);
   AU.addRequired<LiveStacksWrapperLegacy>();
   AU.addPreserved<LiveStacksWrapperLegacy>();
   AU.addRequired<MachineBlockFrequencyInfoWrapperPass>();
@@ -400,10 +542,12 @@ void RegAllocFICAVCA::getAnalysisUsage(AnalysisUsage &AU) const {
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
-void RegAllocFICAVCA::findVRegIntervalsToAlloc(const MachineFunction &MF,
-                                               LiveIntervals &LIS) {
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::findVRegIntervalsToAlloc(const MachineFunction &MF,
+                                            LiveIntervals &LIS) {
   const MachineRegisterInfo &MRI = MF.getRegInfo();
 
+  // Iterate over all live ranges.
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I != E; ++I) {
     Register Reg = Register::index2VirtReg(I);
     if (MRI.reg_nodbg_empty(Reg))
@@ -412,8 +556,19 @@ void RegAllocFICAVCA::findVRegIntervalsToAlloc(const MachineFunction &MF,
   }
 }
 
-void RegAllocFICAVCA::initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
-                                      Spiller &VRegSpiller) {
+static bool isACalleeSavedRegister(MCRegister Reg,
+                                   const TargetRegisterInfo &TRI,
+                                   const MachineFunction &MF) {
+  const MCPhysReg *CSR = MF.getRegInfo().getCalleeSavedRegs();
+  for (unsigned i = 0; CSR[i] != 0; ++i)
+    if (TRI.regsOverlap(Reg, CSR[i]))
+      return true;
+  return false;
+}
+
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::initializeGraph(Graph &G, VirtRegMap &VRM,
+                                   Spiller &VRegSpiller) {
   MachineFunction &MF = G.getMetadata().MF;
 
   LiveIntervals &LIS = G.getMetadata().LIS;
@@ -496,7 +651,15 @@ void RegAllocFICAVCA::initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
 
     auto &VRegAllowed = KV.second;
 
-    GraphBase::NodeId NId = G.addNode();
+    PBQPRAGraph::RawVector NodeCosts(VRegAllowed.size() + 1, 0);
+
+    // Tweak cost of callee saved registers, as using then force spilling and
+    // restoring them. This would only happen in the prologue / epilogue though.
+    for (unsigned i = 0; i != VRegAllowed.size(); ++i)
+      if (isACalleeSavedRegister(VRegAllowed[i], TRI, MF))
+        NodeCosts[1 + i] += 1.0;
+
+    PBQPRAGraph::NodeId NId = G.addNode(std::move(NodeCosts));
     G.getNodeMetadata(NId).setVReg(VReg);
     G.getNodeMetadata(NId).setAllowedRegs(
         G.getMetadata().getAllowedRegs(std::move(VRegAllowed)));
@@ -504,10 +667,11 @@ void RegAllocFICAVCA::initializeGraph(FICAVCARAGraph &G, VirtRegMap &VRM,
   }
 }
 
-void RegAllocFICAVCA::spillVReg(Register VReg,
-                                SmallVectorImpl<Register> &NewIntervals,
-                                MachineFunction &MF, LiveIntervals &LIS,
-                                VirtRegMap &VRM, Spiller &VRegSpiller) {
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::spillVReg(Register VReg,
+                             SmallVectorImpl<Register> &NewIntervals,
+                             MachineFunction &MF, LiveIntervals &LIS,
+                             VirtRegMap &VRM, Spiller &VRegSpiller) {
   VRegsToAlloc.erase(VReg);
   LiveRangeEdit LRE(&LIS.getInterval(VReg), NewIntervals, MF, LIS, &VRM,
                     nullptr, &DeadRemats);
@@ -530,10 +694,10 @@ void RegAllocFICAVCA::spillVReg(Register VReg,
   LLVM_DEBUG(dbgs() << ")\n");
 }
 
-bool RegAllocFICAVCA::mapFICAVCAToRegAlloc(const FICAVCARAGraph &G,
-                                           const Solution &Solution,
-                                           VirtRegMap &VRM,
-                                           Spiller &VRegSpiller) {
+template<typename Graph>
+bool GraphBaseRegAlloc<Graph>::mapSolutionToRegAlloc(const Graph &G,
+                                     const PBQP::Solution &Solution,
+                                     VirtRegMap &VRM, Spiller &VRegSpiller) {
   MachineFunction &MF = G.getMetadata().MF;
   LiveIntervals &LIS = G.getMetadata().LIS;
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
@@ -551,10 +715,10 @@ bool RegAllocFICAVCA::mapFICAVCAToRegAlloc(const FICAVCARAGraph &G,
     Register VReg = G.getNodeMetadata(NId).getVReg();
     unsigned AllocOpt = Solution.getSelection(NId);
 
-    if (AllocOpt != getSpillOptionIdx()) {
+    if (AllocOpt != PBQP::RegAlloc::getSpillOptionIdx()) {
       MCRegister PReg = G.getNodeMetadata(NId).getAllowedRegs()[AllocOpt - 1];
       LLVM_DEBUG(dbgs() << "VREG " << printReg(VReg, &TRI) << " -> "
-                        << TRI.getName(PReg) << "(" << PReg.id() << ")\n");
+                        << TRI.getName(PReg) << "\n");
       assert(PReg != 0 && "Invalid preg selected.");
       VRM.assignVirt2Phys(VReg, PReg);
     } else {
@@ -569,8 +733,9 @@ bool RegAllocFICAVCA::mapFICAVCAToRegAlloc(const FICAVCARAGraph &G,
   return !AnotherRoundNeeded;
 }
 
-void RegAllocFICAVCA::finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
-                                    VirtRegMap &VRM) const {
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
+                                 VirtRegMap &VRM) const {
   MachineRegisterInfo &MRI = MF.getRegInfo();
 
   // First allocate registers for the empty intervals.
@@ -596,8 +761,8 @@ void RegAllocFICAVCA::finalizeAlloc(MachineFunction &MF, LiveIntervals &LIS,
   }
 }
 
-void RegAllocFICAVCA::postOptimization(Spiller &VRegSpiller,
-                                       LiveIntervals &LIS) {
+template<typename Graph>
+void GraphBaseRegAlloc<Graph>::postOptimization(Spiller &VRegSpiller, LiveIntervals &LIS) {
   VRegSpiller.postOptimization();
   /// Remove dead defs because of rematerialization.
   for (auto *DeadInst : DeadRemats) {
@@ -607,7 +772,8 @@ void RegAllocFICAVCA::postOptimization(Spiller &VRegSpiller,
   DeadRemats.clear();
 }
 
-bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
+template<typename Graph>
+bool GraphBaseRegAlloc<Graph>::runOnMachineFunction(MachineFunction &MF) {
   LiveIntervals &LIS = getAnalysis<LiveIntervalsWrapperPass>().getLIS();
   MachineBlockFrequencyInfo &MBFI =
       getAnalysis<MachineBlockFrequencyInfoWrapperPass>().getMBFI();
@@ -617,9 +783,8 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
 
   VirtRegMap &VRM = getAnalysis<VirtRegMapWrapperLegacy>().getVRM();
 
-  VirtRegAuxInfo VRAI(MF, LIS, VRM,
-                      getAnalysis<MachineLoopInfoWrapperPass>().getLI(), MBFI);
-
+  PBQPVirtRegAuxInfo VRAI(
+      MF, LIS, VRM, getAnalysis<MachineLoopInfoWrapperPass>().getLI(), MBFI);
   VRAI.calculateSpillWeightsAndHints();
 
   // FIXME: we create DefaultVRAI here to match existing behavior pre-passing
@@ -633,8 +798,7 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
 
   MF.getRegInfo().freezeReservedRegs();
 
-  LLVM_DEBUG(dbgs() << "FICAVCA Register Allocating for " << MF.getName()
-                    << "\n");
+  LLVM_DEBUG(dbgs() << "PBQP Register Allocating for " << MF.getName() << "\n");
 
   // Allocator main loop:
   //
@@ -656,29 +820,32 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
 
   // If there are non-empty intervals allocate them using pbqp.
   if (!VRegsToAlloc.empty()) {
-    // const TargetSubtargetInfo &Subtarget = MF.getSubtarget();
-    std::unique_ptr<FICAVCARAConstraintList> ConstraintsRoot =
-        std::make_unique<FICAVCARAConstraintList>();
+    const TargetSubtargetInfo &Subtarget = MF.getSubtarget();
+    std::unique_ptr<PBQPRAConstraintList> ConstraintsRoot =
+        std::make_unique<PBQPRAConstraintList>();
     ConstraintsRoot->addConstraint(std::make_unique<SpillCosts>());
     ConstraintsRoot->addConstraint(std::make_unique<Interference>());
+    if (PBQPCoalescing)
+      ConstraintsRoot->addConstraint(std::make_unique<Coalescing>());
+    ConstraintsRoot->addConstraint(Subtarget.getCustomPBQPConstraints());
 
     bool PBQPAllocComplete = false;
     unsigned Round = 0;
 
     while (!PBQPAllocComplete) {
+      LLVM_DEBUG(dbgs() << "  PBQP Regalloc round " << Round << ":\n");
       (void)Round;
 
-      FICAVCARAGraph G(FICAVCARAGraph::GraphMetadata(MF, LIS, MBFI));
+      PBQPRAGraph G(PBQPRAGraph::GraphMetadata(MF, LIS, MBFI));
       initializeGraph(G, VRM, *VRegSpiller);
-
       ConstraintsRoot->apply(G);
 
 #ifndef NDEBUG
-      if (FICAVCADumpGraphs) {
+      if (PBQPDumpGraphs) {
         std::ostringstream RS;
         RS << Round;
         std::string GraphFileName =
-            FullyQualifiedName + "." + RS.str() + ".ficavcagraph";
+            FullyQualifiedName + "." + RS.str() + ".pbqpgraph";
         std::error_code EC;
         raw_fd_ostream OS(GraphFileName, EC, sys::fs::OF_TextWithCRLF);
         LLVM_DEBUG(dbgs() << "Dumping graph for round " << Round << " to \""
@@ -687,15 +854,15 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
       }
 #endif
 
-      Solution Solution = solve(G);
-      PBQPAllocComplete = mapFICAVCAToRegAlloc(G, Solution, VRM, *VRegSpiller);
+      PBQP::Solution Solution = PBQP::RegAlloc::solve(G);
+      PBQPAllocComplete = mapPBQPToRegAlloc(G, Solution, VRM, *VRegSpiller);
       ++Round;
     }
   }
 
   // Finalise allocation, allocate empty ranges.
   finalizeAlloc(MF, LIS, VRM);
-  printGraph(VRM, MF, LIS, "ficavca");
+  printGraph(VRM, MF, LIS, "pbqp");
   postOptimization(*VRegSpiller, LIS);
   VRegsToAlloc.clear();
   EmptyIntervalVRegs.clear();
@@ -703,12 +870,4 @@ bool RegAllocFICAVCA::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "Post alloc VirtRegMap:\n" << VRM << "\n");
 
   return true;
-}
-
-FunctionPass *llvm::createFICAVCARegisterAllocator(char *customPassID) {
-  return new RegAllocFICAVCA(customPassID);
-}
-
-FunctionPass *llvm::createDefaultFICAVCARegisterAllocator() {
-  return createFICAVCARegisterAllocator();
 }
