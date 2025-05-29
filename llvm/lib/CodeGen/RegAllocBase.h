@@ -144,6 +144,8 @@ private:
   void seedLiveRegs();
 };
 
+void printGraph(VirtRegMap &VRM, MachineFunction &MF, LiveIntervals &LIS, const char* Name);
+
 } // end namespace llvm
 
 #endif // LLVM_LIB_CODEGEN_REGALLOCBASE_H

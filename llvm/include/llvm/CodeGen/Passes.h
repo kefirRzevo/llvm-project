@@ -224,6 +224,11 @@ namespace llvm {
   FunctionPass *createGreedyRegisterAllocator();
   FunctionPass *createGreedyRegisterAllocator(RegAllocFilterFunc F);
 
+  /// FICAVCARegisterAllocation Pass - This pass implements the fuzzy irregular
+  /// cellular automata vertex coloring algorithm (FICAVCA) register allocator.
+  ///
+  FunctionPass *createDefaultFICAVCARegisterAllocator();
+
   /// PBQPRegisterAllocation Pass - This pass implements the Partitioned Boolean
   /// Quadratic Prograaming (PBQP) based register allocator.
   ///

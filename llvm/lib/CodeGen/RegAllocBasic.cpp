@@ -328,6 +328,7 @@ bool RABasic::runOnMachineFunction(MachineFunction &mf) {
       createInlineSpiller({*LIS, LiveStks, MDT, MBFI}, *MF, *VRM, VRAI));
 
   allocatePhysRegs();
+  printGraph(*VRM, mf, *LIS, "basic");
   postOptimization();
 
   // Diagnostic output before rewriting

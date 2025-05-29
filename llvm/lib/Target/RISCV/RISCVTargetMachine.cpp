@@ -381,6 +381,12 @@ static RVVRegisterRegAlloc
 static RVVRegisterRegAlloc fastRegAllocRVVReg("fast", "fast register allocator",
                                               createFastRVVRegisterAllocator);
 
+static RVVRegisterRegAlloc pbqpRegAllocRVVReg("pbqp", "pbqp register allocator",
+                                              createDefaultPBQPRegisterAllocator);
+
+static RVVRegisterRegAlloc ficavcaRegAllocRVVReg("ficavca", "ficavca register allocator",
+                                              createDefaultFICAVCARegisterAllocator);
+
 class RISCVPassConfig : public TargetPassConfig {
 public:
   RISCVPassConfig(RISCVTargetMachine &TM, PassManagerBase &PM)

@@ -33,6 +33,10 @@
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 
+#include "llvm/Support/FileSystem.h"
+#include <unordered_set>
+
+
 using namespace llvm;
 
 #define DEBUG_TYPE "regalloc"
@@ -221,4 +225,80 @@ MCPhysReg RegAllocBase::getErrorAssignment(const TargetRegisterClass &RC,
   }
 
   return AllocOrder.front();
+}
+
+static std::unordered_set<unsigned> getVirtRegs(MachineFunction &MF) {
+  std::unordered_set<unsigned> Virts;
+  for (MachineBasicBlock& MBB : MF) {
+    for (MachineInstr& MI : MBB) {
+      for (MachineOperand &MO : MI.operands()) {
+        if (MO.isReg()) {
+          Register Reg = MO.getReg();
+          if (Reg.isVirtual()) {
+            Virts.emplace(Reg.virtRegIndex());
+          }
+        }
+      }
+    }
+  }
+  return Virts;
+}
+
+static unsigned getVirtRegsCount(VirtRegMap &VRM, const std::unordered_set<unsigned> &Virts) {
+  return std::count_if(Virts.begin(), Virts.end(), [&](unsigned RegId) {
+    Register Reg = Register::index2VirtReg(RegId);
+    return VRM.hasPhys(Reg);
+  });
+}
+
+static unsigned getColorDegree(VirtRegMap &VRM, const std::unordered_set<unsigned> &Virts) {
+  std::unordered_set<unsigned> UsedColors;
+  for (unsigned RegId : Virts) {
+    Register Reg = Register::index2VirtReg(RegId);
+    if (VRM.hasPhys(Reg)) {
+      auto Phys = VRM.getPhys(Reg);
+      UsedColors.emplace(Phys.id());
+    }
+  }
+  return UsedColors.size();
+}
+
+void llvm::printGraph(VirtRegMap &VRM, MachineFunction &MF,
+                      LiveIntervals &LIS, const char* Name) {
+  std::unordered_set<unsigned> Virts = std::move(getVirtRegs(MF));
+  if (0) {
+    std::vector<std::pair<unsigned, std::vector<unsigned>>> VRegsToAlloc;
+    MachineRegisterInfo &MRI = MF.getRegInfo();
+    for (auto RegIt = Virts.begin(); RegIt != Virts.end(); ++RegIt) {
+      Register Reg = Register::index2VirtReg(*RegIt);
+      if (MRI.reg_nodbg_empty(Reg))
+        continue;
+      LiveInterval &VRegLI = LIS.getInterval(Reg);
+      std::vector<unsigned> Interference;
+      for (auto RegJIt = std::next(RegIt); RegJIt != Virts.end(); ++RegJIt) {
+        Register RegJ = Register::index2VirtReg(*RegJIt);
+        if (MRI.reg_nodbg_empty(RegJ))
+          continue;
+        LiveInterval &VRegJLI = LIS.getInterval(RegJ);
+        if (!VRegLI.empty() && !VRegJLI.empty() && VRegLI.overlaps(VRegJLI)) {
+          Interference.emplace_back(RegJ.virtRegIndex());
+        }
+      }
+      VRegsToAlloc.emplace_back(Reg.virtRegIndex(), Interference);
+    }
+    const Function &F = MF.getFunction();
+    std::string FullyQualifiedName =
+      F.getParent()->getModuleIdentifier() + "." + F.getName().str() + "." + Name;
+    std::string GraphFileName = FullyQualifiedName + ".txt";
+    std::error_code EC;
+    outs() << "dumped to " << GraphFileName << "\n";
+    raw_fd_ostream OS(GraphFileName, EC, sys::fs::OF_TextWithCRLF);
+    for (auto&& [I, Interference] : VRegsToAlloc)
+      for (auto&& J : Interference)
+        OS << I << " - " << J << "\n";
+  }
+  if (0) {
+    outs() << "Virt regs num: " << getVirtRegsCount(VRM, Virts) << "\n";
+    outs() << "Phys regs num: " << getColorDegree(VRM, Virts) << "\n\n";
+  }
 }

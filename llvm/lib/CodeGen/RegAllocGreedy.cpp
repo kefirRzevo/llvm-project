@@ -2790,6 +2790,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   SetOfBrokenHints.clear();
 
   allocatePhysRegs();
+  printGraph(*VRM, mf, *LIS, "greedy");
   tryHintsRecoloring();
 
   if (VerifyEnabled)
